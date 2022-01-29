@@ -10,8 +10,6 @@ using QuikConnector.ServiceMessage.Package;
 using QuikConnector.ServiceMessage.Message;
 using ServiceMessage;
 using System.Text;
-using QuikConnector.libs.zlib;
-using System.Diagnostics;
 
 namespace QuikConnector.ServiceMessage
 {
@@ -25,11 +23,11 @@ namespace QuikConnector.ServiceMessage
         private const int MAX_SIZE_MESSAGE = 10000000;
 
         /// <summary> Сокет отправки </summary>
-        private CSocket SendSocket = new CSocket(MAX_SIZE_MESSAGE);
+        private СSocket SendSocket = new СSocket(MAX_SIZE_MESSAGE);
         /// <summary> Сокет приема базовых сообщений </summary>
-        private CSocket GetSocket = new CSocket(MAX_SIZE_MESSAGE);
+        private СSocket GetSocket = new СSocket(MAX_SIZE_MESSAGE);
         /// <summary> Сокет приема сделок </summary>
-        private CSocket GetSocketTrades = new CSocket(MAX_SIZE_MESSAGE);
+        private СSocket GetSocketTrades = new СSocket(MAX_SIZE_MESSAGE);
 
         /// <summary> Стек полученных сообщений </summary>
         private MQueue<Msg> QueueBase = new MQueue<Msg>();
@@ -87,7 +85,6 @@ namespace QuikConnector.ServiceMessage
         {
             if (!msgSend.Empty())
             {
-                QDebug.write(msgSend, "send_server");
                 QueueSend.Add(msgSend);
             }
         }
@@ -99,7 +96,6 @@ namespace QuikConnector.ServiceMessage
             {
                 if (msgSend != QueueSend.Last)
                 {
-                    QDebug.write(msgSend, "send_server");
                     QueueSend.Add(msgSend);
                 }
             }
@@ -201,12 +197,10 @@ namespace QuikConnector.ServiceMessage
         {
             if (data.Length > 0)
             {
-                var content = Zlib.Unzip(data, 1000000, "windows-1251");
+                var content = Encoding.GetEncoding(1251).GetString(Zipper.Unzip(data));
                 var pack = PackMsg.Create(content);
-                
                 pack.Each((msg) =>
                 {
-                    QDebug.write(msg.Content());
                     if (!isHistoryTrades)
                     {
                         QueueBase.Add(msg);
@@ -323,7 +317,7 @@ namespace QuikConnector.ServiceMessage
             {
                 var item = QueueSend.getFirst;
                 QueueSend.DeleteItem(item);
-                var bytes = SendSocket.Send(Encoding.ASCII.GetBytes(item + '\t'));
+                var bytes = SendSocket.Send(item + '\t');
             }
         }
 

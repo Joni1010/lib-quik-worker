@@ -5,6 +5,7 @@ using QLuaApp;
 using System.Text.RegularExpressions;
 using Connector.Logs;
 using System;
+using QuikConnector.ServiceMessage;
 
 namespace QuikControl
 {

@@ -8,13 +8,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using QuikConnector.MarketObjects;
-using static ServiceMessage.MManager;
 using QuikConnector.libs;
 using QuikConnector.ServiceMessage;
 using System.Runtime.Serialization.Json;
 using QuikConnector.MarketObjects.Structures;
 using System.IO;
 using System.Text;
+using QuikConnector.ServiceMessage.Message;
 
 namespace ServiceMessage
 {
@@ -35,226 +35,91 @@ namespace ServiceMessage
         {
             Trader = trader;
         }
-        /// <summary>
-        /// Балансировщик поступающих сообщений
-        /// Раздает приоритеты. Устанавливает условия доблирования. Определяет важность.
-        /// </summary>
-        /// <param name="msg"></param>
-        /// <returns></returns>
-        public Message Prioritization(Message msg)
-        {
-            if (msg.Struct[0] == "OnStartTrade")
-            {
-                msg.priority = Priority.P_GIVETRADES;
-            }
-            else if (msg.Struct[0] == "OnCheckSecCount")
-            {
-                msg.priority = Priority.P_CHECKSECURITIES;
-            }
-            else if (msg.Struct[0] == "OnFirm")
-            {
-                msg.priority = Priority.P_FIRM;
-            }
-            else if (msg.Struct[0] == "OnClient")
-            {
-                msg.priority = Priority.P_CLIENT;
-            }
-            else if (msg.Struct[0] == "OnClass")
-            {
-                msg.priority = Priority.P_CLIENT;
-            }
-            else if (msg.Struct[0] == "OnAccount")
-            {
-                msg.priority = Priority.P_ACCOUNT;
-            }
-            else if (msg.Struct[0] == "OnSecurities")
-            {
-                msg.priority = Priority.P_SECURITIES;
-            }
-            else if (msg.Struct[0] == "OnConnectInfo")
-            {
-                msg.priority = Priority.P_CONNECTION;
-                msg.DelDouble = true;
-                msg.ConditionDelDouble = (m) =>
-                {
-                    return m.Struct[0] == msg.Struct[0];
-                };
-            }
-            else if (msg.Struct[0] == "OnQuote")
-            {
-                msg.priority = Priority.P_QUOTE;
-                msg.DelDouble = true;
-                msg.ConditionDelDouble = (m) =>
-                {
-                    return m.Struct[0] == msg.Struct[0] && m.Struct[1] == msg.Struct[1] && m.Struct[2] == msg.Struct[2];
-                };
-            }
-            else if (msg.Struct[0] == "OnChangeSecurities")
-            {
-                msg.priority = Priority.P_CHANGESECURITIES;
-                msg.DelDouble = true;
-                msg.ConditionDelDouble = (m) =>
-                {
-                    return m.Struct[0] == msg.Struct[0] && m.Struct[3] == msg.Struct[3] && m.Struct[6] == msg.Struct[6];
-                };
-            }
-            else if (msg.Struct[0] == "OnPortfolioInfo")
-            {
-                msg.priority = Priority.P_PORTFOLIOINFO;
-                msg.DelDouble = true;
-                msg.ConditionDelDouble = (m) =>
-                {
-                    return m.Struct[0] == msg.Struct[0] && m.Struct[1] == msg.Struct[1] && m.Struct[2] == msg.Struct[2] && m.Struct[3] == msg.Struct[3];
-                };
-            }
-            else if (msg.Struct[0] == "OnTransReply")
-            {
-                msg.priority = Priority.P_REPLY;
-            }
-            /*else if (msg.Struct[0] == "OnAccountPosition")
-            {
-                msg.priority = 5;
-            }*/
-            else if (msg.Struct[0] == "OnMoneyLimit")
-            {
-                msg.priority = Priority.P_MONEYLIMIT;
-            }
-            else if (msg.Struct[0] == "OnDepoLimit")
-            {
-                msg.priority = Priority.P_DEPOLIMIT;
-            }
-            else if (msg.Struct[0] == "OnFuturesHolding")
-            {
-                msg.priority = Priority.P_FUTURESHOLDING;
-            }
-            else if (msg.Struct[0] == "OnFuturesLimit")
-            {
-                msg.priority = Priority.P_FUTURESLIMIT;
-            }
-            else if (msg.Struct[0] == "OnFuturesLimitChange")
-            {
-                msg.priority = Priority.P_FUTURESLIMITCHANGE;
-            }
-            else if (msg.Struct[0] == "OnOrder")
-            {
-                msg.priority = Priority.P_ORDER;
-            }
-            else if (msg.Struct[0] == "OnStopOrder")
-            {
-                msg.priority = Priority.P_STOPORDER;
-            }
-            else if (msg.Struct[0] == "OnMyTrade")
-            {
-                msg.priority = Priority.P_MYTRADE;
-            }
-            else if (msg.Struct[0] == "OnAllTrades")
-            {
-                msg.priority = Priority.P_TRADE;
-            }
-            else if (msg.Struct[0] == "OnAllTradesOld")
-            {
-                msg.priority = Priority.P_HISTORYTRADE;
-            }
-            else
-            {
-                msg.priority = Priority.P_OTHER;
-            }
-            return msg;
-        }
+
 
         /// <summary>
         /// Обработчик новых сообщений
         /// </summary>
         /// <param name="msg"></param>
-        public Message.Report? NewMessage(Message msg)
+        public MsgReport? NewMessage(Msg msg)
         {
-            Message.Report? report = null;
-            if (!msg.IsNull() && msg.Struct.Length > 0)
-            {
-                var jsonMsg = msg.Struct[0];
-                var codeMsg = jsonMsg.Substring(0, 2);
-                jsonMsg = jsonMsg.Remove(0, 2);
-                if (jsonMsg.Length > 0)
-                {
-                    switch (codeMsg)
-                    {
-                        case CodesMsg.CODE_MSG_TYPE_SERVICE:
-                            report = GetTerminalInfo(jsonMsg);
-                            break;
-                        case CodesMsg.CODE_MSG_TYPE_START_TRADES:
-                            report = StartMarket(jsonMsg);
-                            break;
+            MsgReport? report = null;
 
-                        case CodesMsg.CODE_MSG_TYPE_FIRM:
-                            report = GetFirmFromArrayMsg(jsonMsg);
-                            break;
-                        case CodesMsg.CODE_MSG_TYPE_CLASS:
-                            report = GetClassFromArrayMsg(jsonMsg);
-                            break;
-                        case CodesMsg.CODE_MSG_TYPE_ACCOUNT:
-                            report = GetAccountsFromArrayMsg(jsonMsg);
-                            break;
-                        case CodesMsg.CODE_MSG_TYPE_CLIENT:
-                            report = GetClientsFromArrayMsg(jsonMsg);
-                            break;
-                        case CodesMsg.CODE_MSG_TYPE_SECURITIES:
-                            report = GetSecuritiesFromArrayMsg(jsonMsg);
-                            break;
-                        case CodesMsg.CODE_MSG_TYPE_CHECKSECURITIES:
-                            report = GetCheckCountSec(jsonMsg);
-                            break;
-                        case CodesMsg.CODE_MSG_TYPE_DEPOLIMIT:
-                            report = GetDepoLimitFromArrayMsg(jsonMsg);
-                            break;
-                        case CodesMsg.CODE_MSG_TYPE_MONEYLIMIT:
-                            report = GetMoneyLimitsFromArrayMsg(jsonMsg);
-                            break;
-                        case CodesMsg.CODE_MSG_TYPE_FUTURESHOLDING:
-                            report = GetFuturesHoldingFromArrayMsg(jsonMsg);
-                            break;
-                        case CodesMsg.CODE_MSG_TYPE_FUTURESLIMIT:
-                            report = GetFutLimitsFromArrayMsg(jsonMsg);
-                            break;
-                        case CodesMsg.CODE_MSG_TYPE_ORDER:
-                            report = GetOrderFromArrayMsg(jsonMsg);
-                            break;
-                        case CodesMsg.CODE_MSG_TYPE_STOPORDER:
-                            report = GetStopOrderFromArrayMsg(jsonMsg);
-                            break;
-                        case CodesMsg.CODE_MSG_TYPE_MYTRADE:
-                            report = GetMyTradeFromArrayMsg(jsonMsg);
-                            break;
-                        case CodesMsg.CODE_MSG_TYPE_TRADE:
-                            report = GetTradeFromArrayMsg(jsonMsg);
-                            break;
-                        case CodesMsg.CODE_MSG_TYPE_TRADE_HISTORY:
-                            report = GetTradeFromArrayMsg(jsonMsg, false);
-                            break;
-                        default:
-                            if (!msg.Struct[0].Contains("ServerCommand"))
-                            {
-                                Qlog.Write("Fail msg: " + msg);
-                            }
-                            break;
-                    }
-                }
-                switch (msg.Struct[0])
-                {
-                    case "OnQuote":
-                        report = GetQuoteFromArrayMsg(msg);
-                        break;
-                    case "OnChangeSecurities":
-                        report = GetChangeSecuritiesFromArrayMsg(msg, false);
-                        break;
-                    /////////////////////////////////
-                    case "OnPortfolioInfo":
-                        report = GetPortfoliosFromArrayMsg(msg);
-                        break;
-                    case "OnTransReply":
-                        report = GetTransReplyFromArrayMsg(msg);
-                        break;
-                }
+            switch (msg.Code())
+            {
+                case MsgCodes.CODE_MSG_TYPE_SERVICE:
+                    report = GetTerminalInfo(msg.Content());
+                    break;
+                case MsgCodes.CODE_MSG_TYPE_START_TRADES:
+                    report = StartMarket(msg.Content());
+                    break;
+
+                case MsgCodes.CODE_MSG_TYPE_FIRM:
+                    report = GetFirmFromArrayMsg(msg.Content());
+                    break;
+                case MsgCodes.CODE_MSG_TYPE_CLASS:
+                    report = GetClassFromArrayMsg(msg.Content());
+                    break;
+                case MsgCodes.CODE_MSG_TYPE_ACCOUNT:
+                    report = GetAccountsFromArrayMsg(msg.Content());
+                    break;
+                case MsgCodes.CODE_MSG_TYPE_CLIENT:
+                    report = GetClientsFromArrayMsg(msg.Content());
+                    break;
+                case MsgCodes.CODE_MSG_TYPE_SECURITIES:
+                    report = GetSecuritiesFromArrayMsg(msg.Content());
+                    break;
+                case MsgCodes.CODE_MSG_TYPE_CHECKSECURITIES:
+                    report = GetCheckCountSec(msg.Content());
+                    break;
+                case MsgCodes.CODE_MSG_TYPE_DEPOLIMIT:
+                    report = GetDepoLimitFromArrayMsg(msg.Content());
+                    break;
+                case MsgCodes.CODE_MSG_TYPE_MONEYLIMIT:
+                    report = GetMoneyLimitsFromArrayMsg(msg.Content());
+                    break;
+                case MsgCodes.CODE_MSG_TYPE_FUTURESHOLDING:
+                    report = GetFuturesHoldingFromArrayMsg(msg.Content());
+                    break;
+                case MsgCodes.CODE_MSG_TYPE_FUTURESLIMIT:
+                    report = GetFutLimitsFromArrayMsg(msg.Content());
+                    break;
+                case MsgCodes.CODE_MSG_TYPE_ORDER:
+                    report = GetOrderFromArrayMsg(msg.Content());
+                    break;
+                case MsgCodes.CODE_MSG_TYPE_STOPORDER:
+                    report = GetStopOrderFromArrayMsg(msg.Content());
+                    break;
+                case MsgCodes.CODE_MSG_TYPE_MYTRADE:
+                    report = GetMyTradeFromArrayMsg(msg.Content());
+                    break;
+                case MsgCodes.CODE_MSG_TYPE_TRADE:
+                    report = GetTradeFromArrayMsg(msg.Content());
+                    break;
+                case MsgCodes.CODE_MSG_TYPE_TRADE_HISTORY:
+                    report = GetTradeFromArrayMsg(msg.Content(), false);
+                    break;
+                default:
+                    Qlog.Write("Fail msg: " + msg);
+                    break;
             }
+            /*
+            switch (msg.Content())
+            {
+                case "OnQuote":
+                    report = GetQuoteFromArrayMsg(msg);
+                    break;
+                case "OnChangeSecurities":
+                    report = GetChangeSecuritiesFromArrayMsg(msg, false);
+                    break;
+                /////////////////////////////////
+                case "OnPortfolioInfo":
+                    report = GetPortfoliosFromArrayMsg(msg);
+                    break;
+                case "OnTransReply":
+                    report = GetTransReplyFromArrayMsg(msg);
+                    break;
+            }*/
             return report;
         }
 
@@ -264,7 +129,7 @@ namespace ServiceMessage
         /// <param name="msg"></param>
         /// <param name="Msg"></param>
         /// <returns></returns>
-        public Message.Report? StartMarket(string msg)
+        public MsgReport? StartMarket(string msg)
         {
             var ms = new MemoryStream(Encoding.UTF8.GetBytes(msg));
             var json = new DataContractJsonSerializer(typeof(SStartTrades));
@@ -273,14 +138,15 @@ namespace ServiceMessage
 
             if (sstartTrades.start_trades.ToInt32() == 1)
             {
+
                 if (OnStartMarket.NotIsNull())
                 {
                     OnStartMarket();
                 }
-                return new Message.Report()
+                return new MsgReport()
                 {
-                    ResultObject = new object(),
-                    Answer = string.Join(Message.SP_FORSERVER.ToString(), new string[] { "start_market", "1" })
+                    Object = new object(),
+                    Reply = string.Join(MsgServer.SP_FORSERVER.ToString(), new string[] { "start_market", "1" })
                 };
             }
             return null;
@@ -290,7 +156,7 @@ namespace ServiceMessage
         /// <param name="msg"></param>
         /// <param name="Msg"></param>
         /// <returns></returns>
-        public Message.Report? GetCheckCountSec(string msg)
+        public MsgReport? GetCheckCountSec(string msg)
         {
             var ms = new MemoryStream(Encoding.UTF8.GetBytes(msg));
             var json = new DataContractJsonSerializer(typeof(SCheckSec));
@@ -320,10 +186,10 @@ namespace ServiceMessage
                     Qlog.Write("Error load securities:" + countGotSec + "/" + Trader.tSecurities.Count);
                 }
             });
-            return new Message.Report()
+            return new MsgReport()
             {
-                ResultObject = new object(),
-                Answer = string.Join(Message.SP_FORSERVER.ToString(), new string[] { "base_loaded", "1" })
+                Object = new object(),
+                Reply = string.Join(MsgServer.SP_FORSERVER.ToString(), new string[] { "base_loaded", "1" })
             };
         }
 
@@ -420,7 +286,7 @@ namespace ServiceMessage
         /// </summary>
         /// <param name="m"></param>
         /// <param name="Msg"></param>
-        private Message.Report? GetTerminalInfo(string msg)
+        private MsgReport? GetTerminalInfo(string msg)
         {
             var ms = new MemoryStream(Encoding.UTF8.GetBytes(msg));
             var json = new DataContractJsonSerializer(typeof(STerminal));
@@ -458,7 +324,7 @@ namespace ServiceMessage
             {
                 Trader.Terminal.ConnectionTime = Convert.ToDateTime(terminal.CONNECTIONTIME).TimeOfDay;
             }
-            return new Message.Report(Trader.Terminal);
+            return new MsgReport() { Object = Trader.Terminal };
         }
 
         private Securities LastSecTrade = null;
@@ -468,7 +334,7 @@ namespace ServiceMessage
         /// <param name="msg"></param>
         /// <param name="newItem"></param>
         /// <returns></returns>
-        private Message.Report? GetTradeFromArrayMsg(string msg, bool newItem = true)
+        private MsgReport? GetTradeFromArrayMsg(string msg, bool newItem = true)
         {
             var ms = new MemoryStream(Encoding.UTF8.GetBytes(msg));
             var json = new DataContractJsonSerializer(typeof(STrade));
@@ -533,7 +399,7 @@ namespace ServiceMessage
             {
                 Trader.tOldTrades.Add(newTrade, false);
             }
-            return new Message.Report(newTrade);
+            return new MsgReport() { Object = newTrade };
 
             /*
             if (msg.IsNull())
@@ -613,7 +479,7 @@ namespace ServiceMessage
         /// <param name="Msg">Сообщение в виде массива</param>
         /// <param name="Trader">Главный объект Trader</param>
         /// <returns></returns>
-        private Message.Report? GetStopOrderFromArrayMsg(string msg)
+        private MsgReport? GetStopOrderFromArrayMsg(string msg)
         {
             var encode = Encoding.UTF8.GetBytes(msg);
             var ms = new MemoryStream(encode);
@@ -703,7 +569,7 @@ namespace ServiceMessage
             {
                 Trader.tStopOrders.Change(stoporder, false);
             }
-            return new Message.Report(stoporder);
+            return new MsgReport() { Object = stoporder };
 
 
 
@@ -829,7 +695,7 @@ namespace ServiceMessage
         /// <param name="msg"></param>
         /// <param name="Msg"></param>
         /// <returns></returns>
-        public Message.Report? GetOrderFromArrayMsg(string msg)
+        public MsgReport? GetOrderFromArrayMsg(string msg)
         {
             var encode = Encoding.UTF8.GetBytes(msg);
             var ms = new MemoryStream(encode);
@@ -895,7 +761,7 @@ namespace ServiceMessage
             {
                 Trader.tOrders.Change(orFind, false);// !MManager.EventPackages);
             }
-            return new Message.Report(orFind);
+            return new MsgReport() { Object = orFind };
 
             /*
             if (msg.IsNull()) return null;
@@ -988,7 +854,7 @@ namespace ServiceMessage
         /// <param name="msg"></param>
         /// <param name="MsgTrade"></param>
         /// <returns></returns>
-        public Message.Report? GetMyTradeFromArrayMsg(string msg)
+        public MsgReport? GetMyTradeFromArrayMsg(string msg)
         {
             var encode = Encoding.UTF8.GetBytes(msg);
             var ms = new MemoryStream(encode);
@@ -1048,7 +914,7 @@ namespace ServiceMessage
                     }
                 }
             }
-            return new Message.Report(my_trade);
+            return new MsgReport() { Object = my_trade };
 
             /*
             if (msg.IsNull())
@@ -1126,7 +992,7 @@ namespace ServiceMessage
         /// <param name="msg"></param>
         /// <param name="Msg"></param>
         /// <returns></returns>
-        private Message.Report? GetFirmFromArrayMsg(string msg)
+        private MsgReport? GetFirmFromArrayMsg(string msg)
         {
             var encode = Encoding.UTF8.GetBytes(msg);
             var ms = new MemoryStream(encode);
@@ -1145,7 +1011,7 @@ namespace ServiceMessage
             if (firm.Id.Length > 0)
             {
                 Trader.tFirms.Add(firm, false);
-                return new Message.Report(firm);
+                return new MsgReport() { Object = firm };
             }
 
             /*
@@ -1174,7 +1040,7 @@ namespace ServiceMessage
         /// <param name="msg"></param>
         /// <param name="Msg"></param>
         /// <returns></returns>
-        private Message.Report? GetClassFromArrayMsg(string msg)
+        private MsgReport? GetClassFromArrayMsg(string msg)
         {
             var encode = Encoding.UTF8.GetBytes(msg);
             var ms = new MemoryStream(encode);
@@ -1194,7 +1060,7 @@ namespace ServiceMessage
             if (marketClass.Code != null)
             {
                 Trader.tClasses.Add(marketClass, false);
-                return new Message.Report(marketClass);
+                return new MsgReport() { Object = marketClass };
             }
 
             /*if (msg.Struct.Length > 0)
@@ -1296,7 +1162,7 @@ namespace ServiceMessage
 			return null;
 		}*/
 
-        private Message.Report? GetSecuritiesFromArrayMsg(string msg)
+        private MsgReport? GetSecuritiesFromArrayMsg(string msg)
         {
             var encode = Encoding.UTF8.GetBytes(msg);
             var ms = new MemoryStream(encode);
@@ -1318,7 +1184,7 @@ namespace ServiceMessage
 
 
             Trader.tSecurities.Add(sec, false);
-            return new Message.Report(sec);
+            return new MsgReport() { Object = sec };
         }
 
 
@@ -1328,327 +1194,324 @@ namespace ServiceMessage
         /// <param name="msg"></param>
         /// <param name="newItem"></param>
         /// <returns></returns>
-        private Message.Report? GetChangeSecuritiesFromArrayMsg(Message msg, bool newItem = true)
+        private MsgReport? GetChangeSecuritiesFromArrayMsg(Msg msg, bool newItem = true)
         {
-            if (msg.Struct.Length > 0)
-            {
-                // 0 OnChangeSecurities| 1 CODE | 2 0.000000 | 3 ROSN | 4 CLASS_CODE | 5 0.000000 | 6 QJSIM | 7 SEC_SCALE | 8 2.000000 | 9 2 |
-                // STATUS | 0.000000 |  | LOTSIZE | 10.000000 | 10 | BID | 311.400000 | 311,40 | 
-                // BIDDEPTH | 0.000000 |  | BIDDEPTHT | 1260.000000 | 1 260 | NUMBIDS | 0.000000 |  | 
-                // OFFER | 311.500000 | 311,50 | OFFERDEPTH | 0.000000 |  | OFFERDEPTHT | 1480.000000 | 1 480 | 
-                // NUMOFFERS | 0.000000 |  | OPEN | 316.000000 | 316,00 | HIGH | 0.000000 |  | LOW | 0.000000 |  | 
-                // LAST | 311.500000 | 311,50 | CHANGE | 0.000000 |  | QTY | 0.000000 |  | TIME | 171823.000000 | 17:18:23 | 
-                // VOLTODAY | 0.000000 |  | VALTODAY | 1378179001.000000 | 1 378 179 001 | 
-                // TRADINGSTATUS | 1.000000 | открыта | VALUE | 0.000000 |  | WAPRICE | 0.000000 |  | 
-                // HIGHBID | 0.000000 |  | LOWOFFER | 0.000000 |  | NUMTRADES | 33454.000000 | 33 454 | 
-                // PREVPRICE | 239.880000 | 239,88 | PREVWAPRICE | 0.000000 |  | CLOSEPRICE | 0.000000 |  | 
-                // LASTCHANGE | 0.000000 | 0,00 | PRIMARYDIST | 0.000000 |  | ACCRUEDINT | 0.000000 |  | 
-                // YIELD | 0.000000 |  | LONGNAME | 0.000000 | ОАО \"НК \"Роснефть\" | SHORTNAME | 0.000000 | Роснефть | 
-                // TRADE_DATE_CODE | 20170528.000000 | 28.05.2017 | MAT_DATE | 0.000000 |  | DAYS_TO_MAT_DATE | 0.000000 |  | 
-                // SEC_FACE_VALUE | 1.000000 | 1,00 | SEC_FACE_UNIT | 0.000000 | SUR | 
-                // SEC_PRICE_STEP | 0.050000 | 0,05 | SECTYPE | 0.000000 | Ценные бумаги | PRICEMAX | 0.000000 |  | 
-                // PRICEMIN | 0.000000 |  | NUMCONTRACTS | 0.000000 |  | BUYDEPO | 0.000000 |  | SELLDEPO | 0.000000 |  | 
-                // CHANGETIME | 0.000000 |  | TRADECHANGE | 0.000000 |  | FACEVALUE | 0.000000 |  | 
-                // MARKETPRICETODAY | 0.000000 |  | BUYBACKPRICE | 0.000000 |  | BUYBACKDATE | 0.000000 |  | 
-                // ISSUESIZE | 0.000000 |  | PREVDATE | 0.000000 |  | LOPENPRICE | 0.000000 |  | 
-                // LCURRENTPRICE | 0.000000 |  | LCLOSEPRICE | 0.000000 |  | ISPERCENT | 0.000000 |  | 
-                // CLSTATE | 0.000000 |  | CLPRICE | 0.000000 |  | STARTTIME | 0.000000 |  | ENDTIME | 0.000000 |  | 
-                // EVNSTARTTIME | 0.000000 |  | EVNENDTIME | 0.000000 |  | CURSTEPPRICE | 0.000000 |  | 
-                // REALVMPRICE | 0.000000 |  | MARG | 0.000000 |  | EXPDATE | 0.000000
-                if (msg.Struct.Length <= 2)
-                {
-                    return null;
-                }
-                var sec_code = "";
-                var class_code = "";
-                int Scale = -1;
-                int step = 2;
-                for (int i = 1; i < msg.Struct.Length; i++)
-                {
-                    if (sec_code.Length == 0 && (msg.Struct[i] == "CODE" || msg.Struct[i] == "sec_code" || msg.Struct[i] == "code"))
-                    {
-                        sec_code = msg.Struct[i + 2];
-                        i = i + step;
-                        continue;
-                    }
-                    else if (class_code.Length == 0 && (msg.Struct[i] == "CLASS_CODE" || msg.Struct[i] == "class_code"))
-                    {
-                        class_code = msg.Struct[i + 2];
-                        i = i + step;
-                        continue;
-                    }
-                    else if (Scale < 0 && (msg.Struct[i] == "SEC_SCALE" || msg.Struct[i] == "scale"))
-                    {
-                        Scale = msg.Struct[i + 2].ToInt32();
-                        i = i + step;
-                        continue;
-                    }
-                    if (sec_code.Length > 0 && class_code.Length > 0 && Scale >= 0)
-                    {
-                        break;
-                    }
-                }
-                if (sec_code.Length == 0 || class_code.Length == 0 || Scale < 0)
-                {
-                    return null;
-                }
-                var Class = FindClass(class_code);
+            // 0 OnChangeSecurities| 1 CODE | 2 0.000000 | 3 ROSN | 4 CLASS_CODE | 5 0.000000 | 6 QJSIM | 7 SEC_SCALE | 8 2.000000 | 9 2 |
+            // STATUS | 0.000000 |  | LOTSIZE | 10.000000 | 10 | BID | 311.400000 | 311,40 | 
+            // BIDDEPTH | 0.000000 |  | BIDDEPTHT | 1260.000000 | 1 260 | NUMBIDS | 0.000000 |  | 
+            // OFFER | 311.500000 | 311,50 | OFFERDEPTH | 0.000000 |  | OFFERDEPTHT | 1480.000000 | 1 480 | 
+            // NUMOFFERS | 0.000000 |  | OPEN | 316.000000 | 316,00 | HIGH | 0.000000 |  | LOW | 0.000000 |  | 
+            // LAST | 311.500000 | 311,50 | CHANGE | 0.000000 |  | QTY | 0.000000 |  | TIME | 171823.000000 | 17:18:23 | 
+            // VOLTODAY | 0.000000 |  | VALTODAY | 1378179001.000000 | 1 378 179 001 | 
+            // TRADINGSTATUS | 1.000000 | открыта | VALUE | 0.000000 |  | WAPRICE | 0.000000 |  | 
+            // HIGHBID | 0.000000 |  | LOWOFFER | 0.000000 |  | NUMTRADES | 33454.000000 | 33 454 | 
+            // PREVPRICE | 239.880000 | 239,88 | PREVWAPRICE | 0.000000 |  | CLOSEPRICE | 0.000000 |  | 
+            // LASTCHANGE | 0.000000 | 0,00 | PRIMARYDIST | 0.000000 |  | ACCRUEDINT | 0.000000 |  | 
+            // YIELD | 0.000000 |  | LONGNAME | 0.000000 | ОАО \"НК \"Роснефть\" | SHORTNAME | 0.000000 | Роснефть | 
+            // TRADE_DATE_CODE | 20170528.000000 | 28.05.2017 | MAT_DATE | 0.000000 |  | DAYS_TO_MAT_DATE | 0.000000 |  | 
+            // SEC_FACE_VALUE | 1.000000 | 1,00 | SEC_FACE_UNIT | 0.000000 | SUR | 
+            // SEC_PRICE_STEP | 0.050000 | 0,05 | SECTYPE | 0.000000 | Ценные бумаги | PRICEMAX | 0.000000 |  | 
+            // PRICEMIN | 0.000000 |  | NUMCONTRACTS | 0.000000 |  | BUYDEPO | 0.000000 |  | SELLDEPO | 0.000000 |  | 
+            // CHANGETIME | 0.000000 |  | TRADECHANGE | 0.000000 |  | FACEVALUE | 0.000000 |  | 
+            // MARKETPRICETODAY | 0.000000 |  | BUYBACKPRICE | 0.000000 |  | BUYBACKDATE | 0.000000 |  | 
+            // ISSUESIZE | 0.000000 |  | PREVDATE | 0.000000 |  | LOPENPRICE | 0.000000 |  | 
+            // LCURRENTPRICE | 0.000000 |  | LCLOSEPRICE | 0.000000 |  | ISPERCENT | 0.000000 |  | 
+            // CLSTATE | 0.000000 |  | CLPRICE | 0.000000 |  | STARTTIME | 0.000000 |  | ENDTIME | 0.000000 |  | 
+            // EVNSTARTTIME | 0.000000 |  | EVNENDTIME | 0.000000 |  | CURSTEPPRICE | 0.000000 |  | 
+            // REALVMPRICE | 0.000000 |  | MARG | 0.000000 |  | EXPDATE | 0.000000
+            /*         if (msg.Content.Length <= 2)
+                     {
+                         return null;
+                     }
+                     var sec_code = "";
+                     var class_code = "";
+                     int Scale = -1;
+                     int step = 2;
+                     for (int i = 1; i < msg.Content.Length; i++)
+                     {
+                         if (sec_code.Length == 0 && (msg.Content[i] == "CODE" || msg.Content[i] == "sec_code" || msg.Content[i] == "code"))
+                         {
+                             sec_code = msg.Content[i + 2];
+                             i = i + step;
+                             continue;
+                         }
+                         else if (class_code.Length == 0 && (msg.Content[i] == "CLASS_CODE" || msg.Content[i] == "class_code"))
+                         {
+                             class_code = msg.Content[i + 2];
+                             i = i + step;
+                             continue;
+                         }
+                         else if (Scale < 0 && (msg.Content[i] == "SEC_SCALE" || msg.Content[i] == "scale"))
+                         {
+                             Scale = msg.Content[i + 2].ToInt32();
+                             i = i + step;
+                             continue;
+                         }
+                         if (sec_code.Length > 0 && class_code.Length > 0 && Scale >= 0)
+                         {
+                             break;
+                         }
+                     }
+                     if (sec_code.Length == 0 || class_code.Length == 0 || Scale < 0)
+                     {
+                         return null;
+                     }
+                     var Class = FindClass(class_code);
 
-                Securities findSec = null;
-                if (!newItem)
-                {
-                    findSec = FindSecurities(sec_code, Class.Code);
-                }
-                if (findSec.IsNull())
-                {
-                    findSec = new Securities
-                    {
-                        Class = Class,
-                        Code = sec_code,
-                        Scale = Scale
-                    };
-                    newItem = true;
-                }
+                     Securities findSec = null;
+                     if (!newItem)
+                     {
+                         findSec = FindSecurities(sec_code, Class.Code);
+                     }
+                     if (findSec.IsNull())
+                     {
+                         findSec = new Securities
+                         {
+                             Class = Class,
+                             Code = sec_code,
+                             Scale = Scale
+                         };
+                         newItem = true;
+                     }
 
-                for (int i = 1; i < msg.Struct.Length; i++)
-                {
-                    if (msg.Struct[i] == "STATUS")
-                    {
-                        findSec.Params.Status = msg.Struct[i + 1].ToInt32();
-                        i = i + step;
-                        continue;
-                    }
-                    else if (msg.Struct[i] == "SEC_FACE_UNIT" || msg.Struct[i] == "face_unit")
-                    {
-                        findSec.Params.FaceUnit = msg.Struct[i + 2];
-                        i = i + step;
-                        continue;
-                    }
-                    else if (msg.Struct[i] == "STEPPRICE")
-                    {
-                        findSec.Params.StepPrice = msg.Struct[i + 1].ToDecimal(2);
-                        i = i + step;
-                        continue;
-                    }
-                    else if (msg.Struct[i] == "PRICEMIN")
-                    {
-                        findSec.Params.MinPrice = msg.Struct[i + 1].ToDecimal(2);
-                        i = i + step;
-                        continue;
-                    }
-                    else if (msg.Struct[i] == "PRICEMAX")
-                    {
-                        findSec.Params.MaxPrice = msg.Struct[i + 1].ToDecimal(2);
-                        i = i + step;
-                        continue;
-                    }
-                    else if (msg.Struct[i] == "BID")
-                    {
-                        findSec.Params.Bid = msg.Struct[i + 1].ToDecimal(findSec.Scale);
-                        i = i + step;
-                        continue;
-                    }
-                    else if (msg.Struct[i] == "OFFER")
-                    {
-                        findSec.Params.Ask = msg.Struct[i + 1].ToDecimal(findSec.Scale);
-                        i = i + step;
-                        continue;
-                    }
-                    else if (msg.Struct[i] == "BIDDEPTH")
-                    {
-                        findSec.Params.BidDepth = msg.Struct[i + 1].ToDecimal(findSec.Scale);
-                        i = i + step;
-                        continue;
-                    }
-                    else if (msg.Struct[i] == "OFFERDEPTH")
-                    {
-                        findSec.Params.AskDepth = msg.Struct[i + 1].ToDecimal(findSec.Scale);
-                        i = i + step;
-                        continue;
-                    }
-                    else if (msg.Struct[i] == "BIDDEPTHT")
-                    {
-                        findSec.Params.SumBidDepth = msg.Struct[i + 1].ToDecimal(0);
-                        i = i + step;
-                        continue;
-                    }
-                    else if (msg.Struct[i] == "OFFERDEPTHT")
-                    {
-                        findSec.Params.SumAskDepth = msg.Struct[i + 1].ToDecimal(0);
-                        i = i + step;
-                        continue;
-                    }
-                    else if (msg.Struct[i] == "NUMBIDS")
-                    {
-                        findSec.Params.NumBid = msg.Struct[i + 1].ToLong();
-                        i = i + step;
-                        continue;
-                    }
-                    else if (msg.Struct[i] == "NUMOFFERS")
-                    {
-                        findSec.Params.NumAsk = msg.Struct[i + 1].ToLong();
-                        i = i + step;
-                        continue;
-                    }
-                    if (msg.Struct[i] == "BUYDEPO")
-                    {
-                        findSec.Params.BuyDepo = msg.Struct[i + 1].ToDecimal(2);
-                        i = i + step;
-                        continue;
-                    }
-                    else if (msg.Struct[i] == "SELLDEPO")
-                    {
-                        findSec.Params.SellDepo = msg.Struct[i + 1].ToDecimal(2);
-                        i = i + step;
-                        continue;
-                    }
-                    else if (msg.Struct[i] == "SEC_FACE_VALUE" || msg.Struct[i] == "face_value")
-                    {
-                        try
-                        {
-                            findSec.Params.FaceValue = msg.Struct[i + 1].ToDecimal();
-                        }
-                        catch (Exception) { }
-                        i = i + step;
-                        continue;
-                    }
-                    else if (msg.Struct[i] == "SHORTNAME" || msg.Struct[i] == "short_name")
-                    {
-                        findSec.Shortname = msg.Struct[i + 2];
-                        i = i + step;
-                        continue;
-                    }
-                    else if (msg.Struct[i] == "LONGNAME" || msg.Struct[i] == "name")
-                    {
-                        findSec.Name = msg.Struct[i + 2];
-                        i = i + step;
-                        continue;
-                    }
-                    else if (msg.Struct[i] == "LOTSIZE" || msg.Struct[i] == "lot_size")
-                    {
-                        findSec.Lot = msg.Struct[i + 1].ToInt32();
-                        i = i + step;
-                        continue;
-                    }
-                    else if (msg.Struct[i] == "SEC_PRICE_STEP" || msg.Struct[i] == "min_price_step")
-                    {
-                        try
-                        {
-                            findSec.Params.MinPriceStep = msg.Struct[i + 1].ToDecimal(findSec.Scale);
-                        }
-                        catch (Exception)
-                        {
-                            findSec.Params.MinPriceStep = 0;
-                        }
-                        i = i + step;
-                        continue;
-                    }
-                    else if (msg.Struct[i] == "MAT_DATE" || msg.Struct[i] == "mat_date")
-                    {
-                        findSec.Params.MatDate = msg.Struct[i + 1] != "" ? msg.Struct[i + 1].ToLong() : 0;
-                        i = i + step;
-                        continue;
-                    }
-                    else if (msg.Struct[i] == "SECTYPE")
-                    {
-                        findSec.Params.SecType = msg.Struct[i + 2];
-                        i = i + step;
-                        continue;
-                    }
-                    else if (msg.Struct[i] == "DAYS_TO_MAT_DATE")
-                    {
-                        findSec.Params.DaysToMatDate = msg.Struct[i + 1] != "" ? msg.Struct[i + 1].ToInt32() : 0;
-                        i = i + step;
-                        continue;
-                    }
-                    else if (msg.Struct[i] == "TIME")
-                    {
-                        if (msg.Struct[i + 2] != "") findSec.Params.TimeLastTrade = TimeSpan.Parse(msg.Struct[i + 2]);
-                        i = i + step;
-                        continue;
-                    }
-                    else if (msg.Struct[i] == "QTY")
-                    {
-                        findSec.Params.VolumeLastTrade = msg.Struct[i + 1] != "" ? msg.Struct[i + 1].ToInt32() : 0;
-                        i = i + step;
-                        continue;
-                    }
-                    else if (msg.Struct[i] == "LAST")
-                    {
-                        findSec.Params.LastPrice = msg.Struct[i + 1] != "" ? msg.Struct[i + 1].ToDecimal(findSec.Scale) : 0;
-                        i = i + step;
-                        continue;
-                    }
-                    else if (msg.Struct[i] == "OPEN")
-                    {
-                        findSec.Params.Open = msg.Struct[i + 1] != "" ? msg.Struct[i + 1].ToDecimal(findSec.Scale) : 0;
-                        i = i + step;
-                        continue;
-                    }
-                    else if (msg.Struct[i] == "HIGH")
-                    {
-                        findSec.Params.High = msg.Struct[i + 1] != "" ? msg.Struct[i + 1].ToDecimal(findSec.Scale) : 0;
-                        i = i + step;
-                        continue;
-                    }
-                    else if (msg.Struct[i] == "LOW")
-                    {
-                        findSec.Params.Low = msg.Struct[i + 1] != "" ? msg.Struct[i + 1].ToDecimal(findSec.Scale) : 0;
-                        i = i + step;
-                        continue;
-                    }
-                    else if (msg.Struct[i] == "VALTODAY")
-                    {
-                        findSec.Params.ValToday = msg.Struct[i + 1] != "" ? msg.Struct[i + 1].ToDecimal(2) : 0;
-                        i = i + step;
-                        continue;
-                    }
-                    else if (msg.Struct[i] == "TRADINGSTATUS")
-                    {
-                        findSec.Params.TradingStatus = msg.Struct[i + 1] != "" ? msg.Struct[i + 1].ToInt32() : 0;
-                        i = i + step;
-                        continue;
-                    }
-                    else if (msg.Struct[i] == "NUMTRADES")
-                    {
-                        findSec.Params.NumTrades = msg.Struct[i + 1] != "" ? msg.Struct[i + 1].ToLong() : 0;
-                        i = i + step;
-                        continue;
-                    }
-                    else if (msg.Struct[i] == "PREVPRICE")
-                    {
-                        findSec.Params.PriceClose = msg.Struct[i + 1] != "" ? msg.Struct[i + 1].ToDecimal(findSec.Scale) : 0;
-                        i = i + step;
-                        continue;
-                    }
-                    else if (msg.Struct[i] == "TRADE_DATE_CODE")
-                    {
-                        if (msg.Struct[i + 2] != "") findSec.Params.TradeDate = DateMarket.ExtractDateTime(Convert.ToDateTime(msg.Struct[i + 2]));
-                        i = i + step;
-                        continue;
-                    }
-                    else if (msg.Struct[i] == "YIELD")
-                    {
-                        findSec.Params.Yield = msg.Struct[i + 1] != "" ? msg.Struct[i + 1].ToDecimal(2) : 0;
-                        i = i + step;
-                        continue;
-                    }
-                    else if (msg.Struct[i] == "isin_code")
-                    {
-                        findSec.Params.ISIN = msg.Struct[i + 2];
-                        i = i + step;
-                        continue;
-                    }
-                }
-                if (findSec.NotIsNull())
-                {
-                    if (newItem)
-                    {
-                        Trader.tSecurities.Add(findSec, false);
-                    }
-                    return new Message.Report(findSec);
-                }
-            }
+                     for (int i = 1; i < msg.Content.Length; i++)
+                     {
+                         if (msg.Content[i] == "STATUS")
+                         {
+                             findSec.Params.Status = msg.Content[i + 1].ToInt32();
+                             i = i + step;
+                             continue;
+                         }
+                         else if (msg.Content[i] == "SEC_FACE_UNIT" || msg.Content[i] == "face_unit")
+                         {
+                             findSec.Params.FaceUnit = msg.Content[i + 2];
+                             i = i + step;
+                             continue;
+                         }
+                         else if (msg.Content[i] == "STEPPRICE")
+                         {
+                             findSec.Params.StepPrice = msg.Content[i + 1].ToDecimal(2);
+                             i = i + step;
+                             continue;
+                         }
+                         else if (msg.Content[i] == "PRICEMIN")
+                         {
+                             findSec.Params.MinPrice = msg.Content[i + 1].ToDecimal(2);
+                             i = i + step;
+                             continue;
+                         }
+                         else if (msg.Content[i] == "PRICEMAX")
+                         {
+                             findSec.Params.MaxPrice = msg.Content[i + 1].ToDecimal(2);
+                             i = i + step;
+                             continue;
+                         }
+                         else if (msg.Content[i] == "BID")
+                         {
+                             findSec.Params.Bid = msg.Content[i + 1].ToDecimal(findSec.Scale);
+                             i = i + step;
+                             continue;
+                         }
+                         else if (msg.Content[i] == "OFFER")
+                         {
+                             findSec.Params.Ask = msg.Content[i + 1].ToDecimal(findSec.Scale);
+                             i = i + step;
+                             continue;
+                         }
+                         else if (msg.Content[i] == "BIDDEPTH")
+                         {
+                             findSec.Params.BidDepth = msg.Content[i + 1].ToDecimal(findSec.Scale);
+                             i = i + step;
+                             continue;
+                         }
+                         else if (msg.Content[i] == "OFFERDEPTH")
+                         {
+                             findSec.Params.AskDepth = msg.Content[i + 1].ToDecimal(findSec.Scale);
+                             i = i + step;
+                             continue;
+                         }
+                         else if (msg.Content[i] == "BIDDEPTHT")
+                         {
+                             findSec.Params.SumBidDepth = msg.Content[i + 1].ToDecimal(0);
+                             i = i + step;
+                             continue;
+                         }
+                         else if (msg.Content[i] == "OFFERDEPTHT")
+                         {
+                             findSec.Params.SumAskDepth = msg.Content[i + 1].ToDecimal(0);
+                             i = i + step;
+                             continue;
+                         }
+                         else if (msg.Content[i] == "NUMBIDS")
+                         {
+                             findSec.Params.NumBid = msg.Content[i + 1].ToLong();
+                             i = i + step;
+                             continue;
+                         }
+                         else if (msg.Content[i] == "NUMOFFERS")
+                         {
+                             findSec.Params.NumAsk = msg.Content[i + 1].ToLong();
+                             i = i + step;
+                             continue;
+                         }
+                         if (msg.Content[i] == "BUYDEPO")
+                         {
+                             findSec.Params.BuyDepo = msg.Content[i + 1].ToDecimal(2);
+                             i = i + step;
+                             continue;
+                         }
+                         else if (msg.Content[i] == "SELLDEPO")
+                         {
+                             findSec.Params.SellDepo = msg.Content[i + 1].ToDecimal(2);
+                             i = i + step;
+                             continue;
+                         }
+                         else if (msg.Content[i] == "SEC_FACE_VALUE" || msg.Content[i] == "face_value")
+                         {
+                             try
+                             {
+                                 findSec.Params.FaceValue = msg.Content[i + 1].ToDecimal();
+                             }
+                             catch (Exception) { }
+                             i = i + step;
+                             continue;
+                         }
+                         else if (msg.Content[i] == "SHORTNAME" || msg.Content[i] == "short_name")
+                         {
+                             findSec.Shortname = msg.Content[i + 2];
+                             i = i + step;
+                             continue;
+                         }
+                         else if (msg.Content[i] == "LONGNAME" || msg.Content[i] == "name")
+                         {
+                             findSec.Name = msg.Content[i + 2];
+                             i = i + step;
+                             continue;
+                         }
+                         else if (msg.Content[i] == "LOTSIZE" || msg.Content[i] == "lot_size")
+                         {
+                             findSec.Lot = msg.Content[i + 1].ToInt32();
+                             i = i + step;
+                             continue;
+                         }
+                         else if (msg.Content[i] == "SEC_PRICE_STEP" || msg.Content[i] == "min_price_step")
+                         {
+                             try
+                             {
+                                 findSec.Params.MinPriceStep = msg.Content[i + 1].ToDecimal(findSec.Scale);
+                             }
+                             catch (Exception)
+                             {
+                                 findSec.Params.MinPriceStep = 0;
+                             }
+                             i = i + step;
+                             continue;
+                         }
+                         else if (msg.Content[i] == "MAT_DATE" || msg.Content[i] == "mat_date")
+                         {
+                             findSec.Params.MatDate = msg.Content[i + 1] != "" ? msg.Content[i + 1].ToLong() : 0;
+                             i = i + step;
+                             continue;
+                         }
+                         else if (msg.Content[i] == "SECTYPE")
+                         {
+                             findSec.Params.SecType = msg.Content[i + 2];
+                             i = i + step;
+                             continue;
+                         }
+                         else if (msg.Content[i] == "DAYS_TO_MAT_DATE")
+                         {
+                             findSec.Params.DaysToMatDate = msg.Content[i + 1] != "" ? msg.Content[i + 1].ToInt32() : 0;
+                             i = i + step;
+                             continue;
+                         }
+                         else if (msg.Content[i] == "TIME")
+                         {
+                             if (msg.Content[i + 2] != "") findSec.Params.TimeLastTrade = TimeSpan.Parse(msg.Content[i + 2]);
+                             i = i + step;
+                             continue;
+                         }
+                         else if (msg.Content[i] == "QTY")
+                         {
+                             findSec.Params.VolumeLastTrade = msg.Content[i + 1] != "" ? msg.Content[i + 1].ToInt32() : 0;
+                             i = i + step;
+                             continue;
+                         }
+                         else if (msg.Content[i] == "LAST")
+                         {
+                             findSec.Params.LastPrice = msg.Content[i + 1] != "" ? msg.Content[i + 1].ToDecimal(findSec.Scale) : 0;
+                             i = i + step;
+                             continue;
+                         }
+                         else if (msg.Content[i] == "OPEN")
+                         {
+                             findSec.Params.Open = msg.Content[i + 1] != "" ? msg.Content[i + 1].ToDecimal(findSec.Scale) : 0;
+                             i = i + step;
+                             continue;
+                         }
+                         else if (msg.Content[i] == "HIGH")
+                         {
+                             findSec.Params.High = msg.Content[i + 1] != "" ? msg.Content[i + 1].ToDecimal(findSec.Scale) : 0;
+                             i = i + step;
+                             continue;
+                         }
+                         else if (msg.Content[i] == "LOW")
+                         {
+                             findSec.Params.Low = msg.Content[i + 1] != "" ? msg.Content[i + 1].ToDecimal(findSec.Scale) : 0;
+                             i = i + step;
+                             continue;
+                         }
+                         else if (msg.Content[i] == "VALTODAY")
+                         {
+                             findSec.Params.ValToday = msg.Content[i + 1] != "" ? msg.Content[i + 1].ToDecimal(2) : 0;
+                             i = i + step;
+                             continue;
+                         }
+                         else if (msg.Content[i] == "TRADINGSTATUS")
+                         {
+                             findSec.Params.TradingStatus = msg.Content[i + 1] != "" ? msg.Content[i + 1].ToInt32() : 0;
+                             i = i + step;
+                             continue;
+                         }
+                         else if (msg.Content[i] == "NUMTRADES")
+                         {
+                             findSec.Params.NumTrades = msg.Content[i + 1] != "" ? msg.Content[i + 1].ToLong() : 0;
+                             i = i + step;
+                             continue;
+                         }
+                         else if (msg.Content[i] == "PREVPRICE")
+                         {
+                             findSec.Params.PriceClose = msg.Content[i + 1] != "" ? msg.Content[i + 1].ToDecimal(findSec.Scale) : 0;
+                             i = i + step;
+                             continue;
+                         }
+                         else if (msg.Content[i] == "TRADE_DATE_CODE")
+                         {
+                             if (msg.Content[i + 2] != "") findSec.Params.TradeDate = DateMarket.ExtractDateTime(Convert.ToDateTime(msg.Content[i + 2]));
+                             i = i + step;
+                             continue;
+                         }
+                         else if (msg.Content[i] == "YIELD")
+                         {
+                             findSec.Params.Yield = msg.Content[i + 1] != "" ? msg.Content[i + 1].ToDecimal(2) : 0;
+                             i = i + step;
+                             continue;
+                         }
+                         else if (msg.Content[i] == "isin_code")
+                         {
+                             findSec.Params.ISIN = msg.Content[i + 2];
+                             i = i + step;
+                             continue;
+                         }
+                     }
+                     if (findSec.NotIsNull())
+                     {
+                         if (newItem)
+                         {
+                             Trader.tSecurities.Add(findSec, false);
+                         }
+                         return new MsgReport(findSec);
+                     }*/
             return null;
         }
 
@@ -1657,7 +1520,7 @@ namespace ServiceMessage
         /// </summary>
         /// <param name="msg"></param>
         /// <returns></returns>
-        private Message.Report? GetAccountsFromArrayMsg(string msg)
+        private MsgReport? GetAccountsFromArrayMsg(string msg)
         {
             var encode = Encoding.UTF8.GetBytes(msg);
             var ms = new MemoryStream(encode);
@@ -1702,7 +1565,7 @@ namespace ServiceMessage
             if (acc.AccID.NotIsNull() && acc.AccID.Length > 0)
             {
                 Trader.tAccounts.Add(acc);
-                return new Message.Report(acc);
+                return new MsgReport() { Object = acc };
             }
 
             /*
@@ -1749,7 +1612,7 @@ namespace ServiceMessage
         /// <param name="msg"></param>
         /// <param name="Msg"></param>
         /// <returns></returns>
-        private Message.Report? GetClientsFromArrayMsg(string msg)
+        private MsgReport? GetClientsFromArrayMsg(string msg)
         {
             var encode = Encoding.UTF8.GetBytes(msg);
             var ms = new MemoryStream(encode);
@@ -1768,7 +1631,7 @@ namespace ServiceMessage
                 if (cl.Code.Length > 0)
                 {
                     Trader.tClients.Add(cl, false);
-                    return new Message.Report(cl);
+                    return new MsgReport() { Object = cl };
                 }
             }
 
@@ -1781,22 +1644,11 @@ namespace ServiceMessage
         /// <param name="Msg"></param>
 
         /// <returns></returns>
-        private Message.Report? GetAccountPositionFromArrayMsg(Message msg)
+        private MsgReport? GetAccountPositionFromArrayMsg(Msg msg)
         {
-            if (msg.Struct.Length > 0)
-            {
-                /*Client cl = new QuikVEC.Client();
-                if (msg.Struct[1] != "") cl.Code = msg.Struct[1].Trim(' ', '\r', '\n');
-                Msg = null;
-                if (cl.Code.Length > 0)
-                {
-                    return cl;
-                }*/
-                return null;
-            }
             return null;
         }
-        private Message.Report? GetDepoLimitFromArrayMsg(string msg)
+        private MsgReport? GetDepoLimitFromArrayMsg(string msg)
         {
             var encode = Encoding.UTF8.GetBytes(msg);
             var ms = new MemoryStream(encode);
@@ -1869,7 +1721,7 @@ namespace ServiceMessage
             {
                 Trader.tPositions.Change(position, false);
             }
-            return new Message.Report(position);
+            return new MsgReport() { Object = position };
             /*
             if (msg.Struct.Length > 0)
             {
@@ -1962,7 +1814,7 @@ namespace ServiceMessage
         /// <param name="Msg"></param>
 
         /// <returns></returns>
-        private Message.Report? GetFuturesHoldingFromArrayMsg(string msg)
+        private MsgReport? GetFuturesHoldingFromArrayMsg(string msg)
         {
             var encode = Encoding.UTF8.GetBytes(msg);
             var ms = new MemoryStream(encode);
@@ -2029,7 +1881,7 @@ namespace ServiceMessage
             {
                 Trader.tPositions.Change(position, false);
             }
-            return new Message.Report(position);
+            return new MsgReport() { Object = position };
 
             /*
             if (msg.Struct.Length > 0)
@@ -2105,52 +1957,50 @@ namespace ServiceMessage
         /// </summary>
         /// <param name="msg"></param>
         /// <returns></returns>
-        private Message.Report? GetPortfoliosFromArrayMsg(Message msg)
+        private MsgReport? GetPortfoliosFromArrayMsg(Msg msg)
         {
-            if (msg.Struct.Length > 5)
-            {
-                Portfolio portfolio = null;
-                // 0 OnPortfolioInfo | 1 firmid | 2 client_code | 3 limit_kind | 4 portfolio_value | 
-                // 5 is_marginal | 6 total_money_bal | 7 fut_total_asset | 8 fundslevel | 
-                // 9 curr_tag | 10 current_bal | 11 client_type | 12 all_assets | 
-                // 13 rate_change | 14 in_assets | 15 in_all_assets | 16 is_leverage | 
-                // 17 profit_loss | 18 assets | 19 rate_futures | 20 lim_non_margin
-                var Acc = Trader.tAccounts.SearchFirst(a => a.Firm.Id == msg.Struct[1]);
-                if (Acc.IsNull()) Acc = Trader.tAccounts.SearchFirst(a => a.Firm.Id == msg.Struct[1]);
-                var client = Trader.tClients.SearchFirst(c => c.Code.Contains(msg.Struct[2]));
-                var limitKind = msg.Struct[3].ToInt32();
-                if (Acc.NotIsNull())
-                {
-                    portfolio = Trader.tPortfolios.SearchFirst(p => p.Account.AccID == Acc.AccID
-                        && p.Account.Firm.Id == Acc.Firm.Id && p.Client.Code == client.Code && p.LimitKind == limitKind);
-                }
-                else
-                {
-                    //Если счет не найдет портвель не добавляем
-                    return null;
-                }
-                if (portfolio.IsNull())
-                {
-                    portfolio = new Portfolio
-                    {
-                        Account = Acc,
-                        Client = client,
-                        LimitKind = limitKind
-                    };
-                    Trader.tPortfolios.Add(portfolio, false);
-                }
+            Portfolio portfolio = null;
+            // 0 OnPortfolioInfo | 1 firmid | 2 client_code | 3 limit_kind | 4 portfolio_value | 
+            // 5 is_marginal | 6 total_money_bal | 7 fut_total_asset | 8 fundslevel | 
+            // 9 curr_tag | 10 current_bal | 11 client_type | 12 all_assets | 
+            // 13 rate_change | 14 in_assets | 15 in_all_assets | 16 is_leverage | 
+            // 17 profit_loss | 18 assets | 19 rate_futures | 20 lim_non_margin
+            /*          var Acc = Trader.tAccounts.SearchFirst(a => a.Firm.Id == msg.Content[1]);
+                      if (Acc.IsNull()) Acc = Trader.tAccounts.SearchFirst(a => a.Firm.Id == msg.Content[1]);
+                      var client = Trader.tClients.SearchFirst(c => c.Code.Contains(msg.Content[2]));
+                      var limitKind = msg.Content[3].ToInt32();
+                      if (Acc.NotIsNull())
+                      {
+                          portfolio = Trader.tPortfolios.SearchFirst(p => p.Account.AccID == Acc.AccID
+                              && p.Account.Firm.Id == Acc.Firm.Id && p.Client.Code == client.Code && p.LimitKind == limitKind);
+                      }
+                      else
+                      {
+                          //Если счет не найдет портвель не добавляем
+                          return null;
+                      }
+                      if (portfolio.IsNull())
+                      {
+                          portfolio = new Portfolio
+                          {
+                              Account = Acc,
+                              Client = client,
+                              LimitKind = limitKind
+                          };
+                          Trader.tPortfolios.Add(portfolio, false);
+                      }
 
-                portfolio.Balance = msg.Struct[12].ToDecimal(2);
-                portfolio.CurrentBalance = msg.Struct[20].ToDecimal(2);
-                portfolio.LastPositionBalance = msg.Struct[15].ToDecimal(2);
-                portfolio.PositionBalance = portfolio.Balance - portfolio.CurrentBalance;//Math.Round(Convert.ToDecimal(msg.Struct[12].Replace('.', ',')), 2);
-                portfolio.VarMargin = msg.Struct[17].ToDecimal(2);
-                portfolio.RateChange = msg.Struct[13].ToDecimal();
-                portfolio.TypeClient = msg.Struct[11].ToInt32();
+                      portfolio.Balance = msg.Content[12].ToDecimal(2);
+                      portfolio.CurrentBalance = msg.Content[20].ToDecimal(2);
+                      portfolio.LastPositionBalance = msg.Content[15].ToDecimal(2);
+                      portfolio.PositionBalance = portfolio.Balance - portfolio.CurrentBalance;//Math.Round(Convert.ToDecimal(msg.Struct[12].Replace('.', ',')), 2);
+                      portfolio.VarMargin = msg.Content[17].ToDecimal(2);
+                      portfolio.RateChange = msg.Content[13].ToDecimal();
+                      portfolio.TypeClient = msg.Content[11].ToInt32();
 
-                //porFind.Tag = msg.Struct[13];
-                return new Message.Report(portfolio);
-            }
+                      //porFind.Tag = msg.Struct[13];
+                      return new MsgReport() { Object = portfolio };
+            */
             return null;
         }
 
@@ -2161,7 +2011,7 @@ namespace ServiceMessage
         /// <param name="Msg"></param>
 
         /// <returns></returns>
-        private Message.Report? GetMoneyLimitsFromArrayMsg(string msg)
+        private MsgReport? GetMoneyLimitsFromArrayMsg(string msg)
         {
             var encode = Encoding.UTF8.GetBytes(msg);
             var ms = new MemoryStream(encode);
@@ -2194,8 +2044,8 @@ namespace ServiceMessage
                 Trader.tPortfolios.Add(portfolio, false);
             }
             //Ответ на сервер
-            var answer = String.Join(
-                Message.SP_FORSERVER.ToString(),
+            var Reply = String.Join(
+                MsgServer.SP_FORSERVER.ToString(),
                 new string[] { "GetPortfolioInfo", Acc.Firm.Id, client.Code, smonetLimits.limit_kind }
                 );
 
@@ -2213,10 +2063,10 @@ namespace ServiceMessage
             //if (porFind.Account != null)
             */
 
-            return new Message.Report()
+            return new MsgReport()
             {
-                ResultObject = portfolio,
-                Answer = answer
+                Object = portfolio,
+                Reply = Reply
             };
             /*
             if (msg.Struct.Length > 0)
@@ -2246,7 +2096,7 @@ namespace ServiceMessage
                     Trader.tPortfolios.Add(portfolio, false);
                 }
                 //Ответ на сервер
-                var answer = String.Join(
+                var Reply = String.Join(
                     Message.SP_FORSERVER.ToString(),
                     new string[] { "GetPortfolioInfo", Acc.Firm.Id, client.Code, msg.Struct[3] }
                     );
@@ -2266,8 +2116,8 @@ namespace ServiceMessage
 
                 return new Message.Report()
                 {
-                    ResultObject = portfolio,
-                    Answer = answer
+                    Object = portfolio,
+                    Reply = Reply
                 };
             }
             return null;
@@ -2280,7 +2130,7 @@ namespace ServiceMessage
         /// <param name="Msg"></param>
 
         /// <returns></returns>
-        private Message.Report? GetFutLimitsFromArrayMsg(string msg)
+        private MsgReport? GetFutLimitsFromArrayMsg(string msg)
         {
             var encode = Encoding.UTF8.GetBytes(msg);
             var ms = new MemoryStream(encode);
@@ -2323,10 +2173,10 @@ namespace ServiceMessage
             portfolio.Commission = sfutLimit.ts_comission.ToDecimal(2);
             portfolio.RealMargin = sfutLimit.real_varmargin.ToDecimal(2);
 
-            return new Message.Report()
+            return new MsgReport()
             {
-                ResultObject = portfolio
-                // Answer = answer
+                Object = portfolio
+                // Reply = Reply
             };
 
             /*
@@ -2338,8 +2188,8 @@ namespace ServiceMessage
                 */
             /*       return new Message.Report()
                    {
-                       ResultObject = portfolio
-                       // Answer = answer
+                       Object = portfolio
+                       // Reply = Reply
                    };
 
                /*
@@ -2386,8 +2236,8 @@ namespace ServiceMessage
                        */
             /*       return new Message.Report()
                    {
-                       ResultObject = portfolio
-                       // Answer = answer
+                       Object = portfolio
+                       // Reply = Reply
                    };
                }*/
             return null;
@@ -2398,72 +2248,70 @@ namespace ServiceMessage
         /// <param name="Msg"></param>
 
         /// <returns></returns>
-        private Message.Report? GetQuoteFromArrayMsg(Message msg)
+        private MsgReport? GetQuoteFromArrayMsg(Msg msg)
         {
-            if (msg.Struct.Length > 0)
-            {
-                Quote quote = new Quote();
-                // 0 OnQuote | 1 QJSIM | 2 MGNT | 3 10.000000 | 4 10.000000 | 
-                // 9288.000000 | 16 | 9289.000000 | 17 | 9290.000000 | 5 | 9292.000000 | 11 | 
-                // 9295.000000 | 56 | 9300.000000 | 1 | 9301.000000 | 1 | 9306.000000 | 1 | 
-                // 9311.000000 | 36 | 9325.000000 | 22 | 9331.000000 | 3 | 9333.000000 | 35 | 
-                // 9348.000000 | 57 | 9349.000000 | 6 | 9350.000000 | 20 | 9351.000000 | 50 | 
-                // 9352.000000 | 27 | 9353.000000 | 6 | 9356.000000 | 1 | 9366.000000 | 20
+            Quote quote = new Quote();
+            // 0 OnQuote | 1 QJSIM | 2 MGNT | 3 10.000000 | 4 10.000000 | 
+            // 9288.000000 | 16 | 9289.000000 | 17 | 9290.000000 | 5 | 9292.000000 | 11 | 
+            // 9295.000000 | 56 | 9300.000000 | 1 | 9301.000000 | 1 | 9306.000000 | 1 | 
+            // 9311.000000 | 36 | 9325.000000 | 22 | 9331.000000 | 3 | 9333.000000 | 35 | 
+            // 9348.000000 | 57 | 9349.000000 | 6 | 9350.000000 | 20 | 9351.000000 | 50 | 
+            // 9352.000000 | 27 | 9353.000000 | 6 | 9356.000000 | 1 | 9366.000000 | 20
 
-                var classCode = msg.Struct[1];
-                /*if (!ServiceConvertorMsg.CodesClassForStock.Contains(classCode))
-                    return null;*/
-                quote.Sec = this.FindSecurities(msg.Struct[2], classCode);
-                if (quote.Sec.NotIsNull())
-                {
-                    List<Quote.QuoteRow> listBid = new List<Quote.QuoteRow>();
-                    List<Quote.QuoteRow> listAsk = new List<Quote.QuoteRow>();
-                    int indexStartDepth = 3;
-                    bool isAsk = true;
-                    for (int i = indexStartDepth; i < msg.Struct.Length; i++)
-                    {
-                        var data = msg.Struct[i].Split('=');
-                        if (data.Length != 2)
-                        {
-                            continue;
-                        }
-                        if (data[0].Contains("offer"))
-                        {
-                            isAsk = true;
-                        }
-                        else if (data[0].Contains("bid"))
-                        {
-                            isAsk = false;
-                        }
-                        Quote.QuoteRow row = null;
-                        if (data[0].Contains("quantity"))
-                        {
-                            row = getChartQuote(msg.Struct[i], msg.Struct[i + 1], quote.Sec);
-                            i = i + 1;
-                        }
-                        else if (data[0].Contains("price"))
-                        {
-                            row = getChartQuote(msg.Struct[i + 1], msg.Struct[i], quote.Sec);
-                            i = i + 1;
-                        }
-                        //BID
-                        if (!isAsk)
-                        {
-                            listBid.Add(row);
-                        }
-                        //ASK
-                        else
-                        {
-                            listAsk.Add(row);
-                        }
-                    }
-                    quote.Bid = listBid.ToArray();
-                    quote.Ask = listAsk.ToArray();
-                    quote.Sec.SetQuote(quote);
-                    //Trader.tQuote.Change(Quote, false);
-                    return new Message.Report(quote);
-                }
-            }
+            //          var classCode = msg.Content[1];
+            /*if (!ServiceConvertorMsg.CodesClassForStock.Contains(classCode))
+                return null;*/
+            /*          quote.Sec = this.FindSecurities(msg.Content[2], classCode);
+                      if (quote.Sec.NotIsNull())
+                      {
+                          List<Quote.QuoteRow> listBid = new List<Quote.QuoteRow>();
+                          List<Quote.QuoteRow> listAsk = new List<Quote.QuoteRow>();
+                          int indexStartDepth = 3;
+                          bool isAsk = true;
+                          for (int i = indexStartDepth; i < msg.Content.Length; i++)
+                          {
+                              var data = msg.Content[i].Split('=');
+                              if (data.Length != 2)
+                              {
+                                  continue;
+                              }
+                              if (data[0].Contains("offer"))
+                              {
+                                  isAsk = true;
+                              }
+                              else if (data[0].Contains("bid"))
+                              {
+                                  isAsk = false;
+                              }
+                              Quote.QuoteRow row = null;
+                              if (data[0].Contains("quantity"))
+                              {
+                                  row = getChartQuote(msg.Content[i], msg.Content[i + 1], quote.Sec);
+                                  i = i + 1;
+                              }
+                              else if (data[0].Contains("price"))
+                              {
+                                  row = getChartQuote(msg.Content[i + 1], msg.Content[i], quote.Sec);
+                                  i = i + 1;
+                              }
+                              //BID
+                              if (!isAsk)
+                              {
+                                  listBid.Add(row);
+                              }
+                              //ASK
+                              else
+                              {
+                                  listAsk.Add(row);
+                              }
+                          }
+                          quote.Bid = listBid.ToArray();
+                          quote.Ask = listAsk.ToArray();
+                          quote.Sec.SetQuote(quote);
+                          //Trader.tQuote.Change(Quote, false);
+                          return new MsgReport(quote);
+                      }*/
+
             return null;
         }
         /// <summary>
@@ -2492,43 +2340,41 @@ namespace ServiceMessage
         /// <param name="tmpM"></param>
         /// <param name="Msg"></param>
         /// <returns></returns>
-        private Message.Report? GetTransReplyFromArrayMsg(Message msg)
+        private MsgReport? GetTransReplyFromArrayMsg(Msg msg)
         {
-            if (msg.Struct.Length > 0)
-            {
-                Reply trans = new Reply();
-                // 0 OnTransReply | 1 account | 2 firm_id | 3 order_num, 4 trans_id, 5 price , 
-                // 6 quantity, 7 client_code , 8 balance , 9 time , 10 status , 11 exchange_code , 
-                // 12 date_time.year | 13 date_time.month | 14 date_time.day | 15 date_time.hour | 16 date_time.min | 
-                // 17 date_time.sec | 18 date_time.ms | 19 uid | 
-                // 20 result_msg | 21 brokerref | 22 server_trans_id | 23 flags
+            Reply trans = new Reply();
+            // 0 OnTransReply | 1 account | 2 firm_id | 3 order_num, 4 trans_id, 5 price , 
+            // 6 quantity, 7 client_code , 8 balance , 9 time , 10 status , 11 exchange_code , 
+            // 12 date_time.year | 13 date_time.month | 14 date_time.day | 15 date_time.hour | 16 date_time.min | 
+            // 17 date_time.sec | 18 date_time.ms | 19 uid | 
+            // 20 result_msg | 21 brokerref | 22 server_trans_id | 23 flags
+/*
+            trans.Account = Trader.tAccounts.SearchFirst(a => a.AccID == msg.Content[1]);
+            trans.Firm = this.FindFirm(msg.Content[2]);
 
-                trans.Account = Trader.tAccounts.SearchFirst(a => a.AccID == msg.Struct[1]);
-                trans.Firm = this.FindFirm(msg.Struct[2]);
+            //if (trans.Account == null && trans.Firm == null) return null;
 
-                //if (trans.Account == null && trans.Firm == null) return null;
+            trans.OrderNumber = msg.Content[3].ToLong();
+            trans.TransID = msg.Content[4].ToLong();
+            trans.Price = msg.Content[5].ToDecimal();
+            trans.Volume = msg.Content[6].ToInt32();
+            trans.Balance = msg.Content[8].ToDecimal();
 
-                trans.OrderNumber = msg.Struct[3].ToLong();
-                trans.TransID = msg.Struct[4].ToLong();
-                trans.Price = msg.Struct[5].ToDecimal();
-                trans.Volume = msg.Struct[6].ToInt32();
-                trans.Balance = msg.Struct[8].ToDecimal();
+            trans.Client = Trader.tClients.SearchFirst(c => c.Code.Contains(msg.Content[7]));
+            trans.Status = msg.Content[10].ToInt32();
 
-                trans.Client = Trader.tClients.SearchFirst(c => c.Code.Contains(msg.Struct[7]));
-                trans.Status = msg.Struct[10].ToInt32();
+            DateMarket date = new DateMarket();
+            date.SetDateTimeByStruct(12, msg.Content);
+            trans.DateTrans = date.GetDateTime();
 
-                DateMarket date = new DateMarket();
-                date.SetDateTimeByStruct(12, msg.Struct);
-                trans.DateTrans = date.GetDateTime();
+            trans.uid = msg.Content[19].ToDecimal();
+            trans.ResultMsg = msg.Content[20];
+            trans.Comment = msg.Content[21];
 
-                trans.uid = msg.Struct[19].ToDecimal();
-                trans.ResultMsg = msg.Struct[20];
-                trans.Comment = msg.Struct[21];
-
-                trans.ServerTransID = msg.Struct[22].ToLong();
-                Trader.tTransaction.NewTransReply(trans, true);
-                return new Message.Report(trans);
-            }
+            trans.ServerTransID = msg.Content[22].ToLong();
+            Trader.tTransaction.NewTransReply(trans, true);
+            return new MsgReport(trans);
+*/
             return null;
         }
     }

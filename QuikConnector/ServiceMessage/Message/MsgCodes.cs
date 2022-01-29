@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace QuikConnector.ServiceMessage
 {
-    class CodesMsg
+    class MsgCodes
     {
         public const string CODE_MSG_TYPE_SERVICE       = "01";
         public const string CODE_MSG_TYPE_START_TRADES  = "02";
