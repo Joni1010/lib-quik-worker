@@ -11,8 +11,7 @@ namespace QLuaApp
         /// <summary> Адресс сервера </summary>
         public string ServerAddr;
         /// <summary> Порт сервера </summary>
-        public int tPort;
-        public int tPortTrade;
-        public int tPortReceive;
+        public int portSend;
+        public int portReceive;
     }
 }

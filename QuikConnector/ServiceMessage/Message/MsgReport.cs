@@ -15,6 +15,10 @@ namespace QuikConnector.ServiceMessage.Message
         /// <summary>
         /// 
         /// </summary>
+        public bool ActivateDate;
+        /// <summary>
+        /// 
+        /// </summary>
         public object Object;
         /// <summary>
         /// Формируем обьект ответа обработки сообщения

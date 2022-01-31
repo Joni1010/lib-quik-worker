@@ -89,12 +89,12 @@ namespace QuikConnector.libs
             {
                 Array.Clear(StateSock.buffer, 0, StateSock.buffer.Length);
                 StateSock.TransferBytes = StateSock.Socket.Receive(StateSock.buffer, StateSock.Socket.Available, SocketFlags.None);
-                Send(StateObject.RESPONSE_GET);
+                Send(Encoding.ASCII.GetBytes(StateSock.TransferBytes.ToString()));
                 //StateSock.BufferString = Encoding.GetEncoding(1251).GetString(StateSock.buffer, 0, StateSock.TransferBytes);
             }
             catch (Exception)
             {
-
+                int r = 0;
             }
             return StateSock.TransferBytes;
         }

@@ -44,6 +44,7 @@
     <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Commands.cs" />
     <Compile Include="Events\ActivatorEvent.cs" />
     <Compile Include="libs\LockObject.cs" />
     <Compile Include="libs\zlib\Zlib.cs" />

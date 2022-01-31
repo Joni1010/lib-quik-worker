@@ -9,7 +9,7 @@ namespace QuikConnector
 {
     class QDebug
     {
-        public static bool Enabled = true;
+        public static bool Enabled = false;
         public static void write(string text, string mark = "qdebug")
         {
             if (Enabled)

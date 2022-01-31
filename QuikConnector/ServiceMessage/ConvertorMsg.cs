@@ -15,6 +15,7 @@ using QuikConnector.MarketObjects.Structures;
 using System.IO;
 using System.Text;
 using QuikConnector.ServiceMessage.Message;
+using QuikConnector;
 
 namespace ServiceMessage
 {
@@ -36,7 +37,6 @@ namespace ServiceMessage
             Trader = trader;
         }
 
-
         /// <summary>
         /// Обработчик новых сообщений
         /// </summary>
@@ -51,7 +51,6 @@ namespace ServiceMessage
                     report = GetTerminalInfo(msg.Content());
                     break;
                 case MsgCodes.CODE_MSG_TYPE_START_TRADES:
-                    report = StartMarket(msg.Content());
                     break;
 
                 case MsgCodes.CODE_MSG_TYPE_FIRM:
@@ -123,35 +122,6 @@ namespace ServiceMessage
             return report;
         }
 
-        /// <summary>
-        /// Сообщает серверу что можно грузить данные по рынку.
-        /// </summary>
-        /// <param name="msg"></param>
-        /// <param name="Msg"></param>
-        /// <returns></returns>
-        public MsgReport? StartMarket(string msg)
-        {
-            var ms = new MemoryStream(Encoding.UTF8.GetBytes(msg));
-            var json = new DataContractJsonSerializer(typeof(SStartTrades));
-            var sstartTrades = json.ReadObject(ms) as SStartTrades;
-            ms.Close();
-
-            if (sstartTrades.start_trades.ToInt32() == 1)
-            {
-
-                if (OnStartMarket.NotIsNull())
-                {
-                    OnStartMarket();
-                }
-                return new MsgReport()
-                {
-                    Object = new object(),
-                    Reply = string.Join(MsgServer.SP_FORSERVER.ToString(), new string[] { "start_market", "1" })
-                };
-            }
-            return null;
-        }
-
         /// <summary> Отправка флага что все базовые данные загружены </summary>
         /// <param name="msg"></param>
         /// <param name="Msg"></param>
@@ -166,9 +136,11 @@ namespace ServiceMessage
             MThread.InitThread(() =>
             {
                 var countGotSec = sCheckSec.count_sec.ToInt32();
-                int timeOut = 1000;
+                int timeOut = 2000;
                 while (MManager.LoopProcessing)
                 {
+                    QDebug.write(Trader.tSecurities.Count.ToString());
+
                     if (countGotSec == Trader.tSecurities.Count)
                     {
                         //Базовые данные загружены
@@ -189,7 +161,8 @@ namespace ServiceMessage
             return new MsgReport()
             {
                 Object = new object(),
-                Reply = string.Join(MsgServer.SP_FORSERVER.ToString(), new string[] { "base_loaded", "1" })
+                ActivateDate = true,
+                Reply = string.Join(MsgServer.SP_FORSERVER.ToString(), new string[] { "start_market", "1" })
             };
         }
 
@@ -324,7 +297,11 @@ namespace ServiceMessage
             {
                 Trader.Terminal.ConnectionTime = Convert.ToDateTime(terminal.CONNECTIONTIME).TimeOfDay;
             }
-            return new MsgReport() { Object = Trader.Terminal };
+            return new MsgReport()
+            {
+                Object = Trader.Terminal,
+                ActivateDate = true,
+            };
         }
 
         private Securities LastSecTrade = null;
@@ -360,6 +337,7 @@ namespace ServiceMessage
 
             if (newTrade.Sec.IsNull())
             {
+                Qlog.Write("Not security trade: " + strade.sec_code + ":" + strade.class_code);
                 Qlog.Write("Not security trade: " + strade.sec_code + ":" + strade.class_code);
                 return null;
             }
@@ -399,7 +377,11 @@ namespace ServiceMessage
             {
                 Trader.tOldTrades.Add(newTrade, false);
             }
-            return new MsgReport() { Object = newTrade };
+            return new MsgReport()
+            {
+                Object = newTrade,
+                ActivateDate = true,
+            };
 
             /*
             if (msg.IsNull())
@@ -2348,33 +2330,33 @@ namespace ServiceMessage
             // 12 date_time.year | 13 date_time.month | 14 date_time.day | 15 date_time.hour | 16 date_time.min | 
             // 17 date_time.sec | 18 date_time.ms | 19 uid | 
             // 20 result_msg | 21 brokerref | 22 server_trans_id | 23 flags
-/*
-            trans.Account = Trader.tAccounts.SearchFirst(a => a.AccID == msg.Content[1]);
-            trans.Firm = this.FindFirm(msg.Content[2]);
+            /*
+                        trans.Account = Trader.tAccounts.SearchFirst(a => a.AccID == msg.Content[1]);
+                        trans.Firm = this.FindFirm(msg.Content[2]);
 
-            //if (trans.Account == null && trans.Firm == null) return null;
+                        //if (trans.Account == null && trans.Firm == null) return null;
 
-            trans.OrderNumber = msg.Content[3].ToLong();
-            trans.TransID = msg.Content[4].ToLong();
-            trans.Price = msg.Content[5].ToDecimal();
-            trans.Volume = msg.Content[6].ToInt32();
-            trans.Balance = msg.Content[8].ToDecimal();
+                        trans.OrderNumber = msg.Content[3].ToLong();
+                        trans.TransID = msg.Content[4].ToLong();
+                        trans.Price = msg.Content[5].ToDecimal();
+                        trans.Volume = msg.Content[6].ToInt32();
+                        trans.Balance = msg.Content[8].ToDecimal();
 
-            trans.Client = Trader.tClients.SearchFirst(c => c.Code.Contains(msg.Content[7]));
-            trans.Status = msg.Content[10].ToInt32();
+                        trans.Client = Trader.tClients.SearchFirst(c => c.Code.Contains(msg.Content[7]));
+                        trans.Status = msg.Content[10].ToInt32();
 
-            DateMarket date = new DateMarket();
-            date.SetDateTimeByStruct(12, msg.Content);
-            trans.DateTrans = date.GetDateTime();
+                        DateMarket date = new DateMarket();
+                        date.SetDateTimeByStruct(12, msg.Content);
+                        trans.DateTrans = date.GetDateTime();
 
-            trans.uid = msg.Content[19].ToDecimal();
-            trans.ResultMsg = msg.Content[20];
-            trans.Comment = msg.Content[21];
+                        trans.uid = msg.Content[19].ToDecimal();
+                        trans.ResultMsg = msg.Content[20];
+                        trans.Comment = msg.Content[21];
 
-            trans.ServerTransID = msg.Content[22].ToLong();
-            Trader.tTransaction.NewTransReply(trans, true);
-            return new MsgReport(trans);
-*/
+                        trans.ServerTransID = msg.Content[22].ToLong();
+                        Trader.tTransaction.NewTransReply(trans, true);
+                        return new MsgReport(trans);
+            */
             return null;
         }
     }

@@ -16,30 +16,13 @@ namespace QuikConnector.ServiceMessage.Package
         /// <returns></returns>
         public static PackMsg Create(string pack)
         {
-            return new PackMsg() { Data = ConvertToArrayMsg(pack.Split(SPLITTER_PACK)) };
-        }
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="data"></param>
-        /// <returns></returns>
-        protected static Msg[] ConvertToArrayMsg(string[] data)
-        {
-            Msg[] collection = new Msg[data.Length];
-            for (int i = 0; i < data.Length; i++)
-            {
-                if (data[i].Length > 0)
-                {
-                    collection[i] = Msg.Create(data[i]);
-                }
-            }
-            return collection;
+            return new PackMsg() { Data = pack.Split(SPLITTER_PACK) };
         }
         /// <summary> 
         /// Разделитель сообщений в одной посылке 
         /// </summary>
         protected const char SPLITTER_PACK = '\t';
-       
+
         /// <summary>
         /// Приоритет пакета
         /// </summary>
@@ -47,7 +30,7 @@ namespace QuikConnector.ServiceMessage.Package
         /// <summary>
         /// Структура пакета
         /// </summary>
-        public Msg[] Data;
+        public string[] Data;
         /// <summary>
         /// Флаг на проверку дублей
         /// </summary>
@@ -69,7 +52,10 @@ namespace QuikConnector.ServiceMessage.Package
             }
             foreach (var item in Data)
             {
-                actionForMsg(item);
+                if (item.Length > 0)
+                {
+                    actionForMsg(Msg.Create(item));
+                }
             }
         }
     }
