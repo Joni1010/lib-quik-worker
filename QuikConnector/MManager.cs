@@ -27,7 +27,8 @@ namespace QuikConnector.ServiceMessage
 
         /// <summary> Стек сообщений на отправку </summary>
         private MQueue<string> QueueSend = new MQueue<string>();
-        private MQueue<string> QueueGet = new MQueue<string>();
+        private MQueue<PackMsg> QueuePack = new MQueue<PackMsg>();
+        private MQueue<Msg> QueueNotPriority = new MQueue<Msg>();
 
         /// <summary> Объект конвертора </summary>
         public ConvertorMsg Convertor = null;
@@ -175,7 +176,7 @@ namespace QuikConnector.ServiceMessage
             if (data.Length > 0)
             {
                 string content = Zlib.Unzip(data, 2000000, "windows-1251");
-                QueueGet.Add(content);
+                QueuePack.Add(PackMsg.Parse(content));
             }
             return data.Length;
         }
@@ -186,19 +187,53 @@ namespace QuikConnector.ServiceMessage
 
         private void HandlerPack()
         {
-            if (QueueGet.Count > 0)
+            int k = 0;
+            if (QueuePack.Count > 0)
             {
-                string content = QueueGet.getFirst;
-                QueueGet.DeleteItem(content);
-                PackMsg pack = PackMsg.Create(content);
-                pack.Each((msg) =>
+                var pack = QueuePack.getFirst;
+                QueuePack.DeleteItem(pack);
+                bool wasPriority = false;
+                foreach (var textMsg in pack.GetData())
                 {
-                    QDebug.write(msg.Content());
-                    HandlerMessage(msg);
-                });
-                AcivateAllEvent();
+                    var msg = Msg.Create(textMsg);
+                    QDebug.write(textMsg);
+                    //Сортируем на приоритетные и нет
+                    if (!Priority.NotPriority(msg))
+                    {
+                        HandlerMessage(msg);
+                        wasPriority = true;
+                        k++;
+                    }
+                    else
+                    {
+                        QueueNotPriority.Add(msg);
+                    }
+                }
+                if (wasPriority)
+                {
+                    AcivateAllEvent();
+                }
+                if (k > 0)
+                {
+                    QDebug.Output("prior "+k.ToString());
+                }
             }
+            else
+            {
+                //Обработка не приоритетных сообщений
+                while (QueuePack.Count == 0 && QueueNotPriority.Count > 0)
+                {
+                    var npMsg = QueueNotPriority.getFirst;
+                    QueueNotPriority.DeleteItem(npMsg);
+                    HandlerMessage(npMsg);
+                    k++;
+                }
+                if (k > 0)
+                {
+                    QDebug.Output("not_prior "+k.ToString());
+                }
 
+            }
         }
 
         /// <summary>
@@ -225,9 +260,9 @@ namespace QuikConnector.ServiceMessage
                         {
                             AcivateAllEvent();
                         }
-                        return true;
                     }
                 }
+                return true;
             }
             return false;
         }

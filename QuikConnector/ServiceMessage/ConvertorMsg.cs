@@ -161,7 +161,6 @@ namespace ServiceMessage
             return new MsgReport()
             {
                 Object = new object(),
-                ActivateDate = true,
                 Reply = string.Join(MsgServer.SP_FORSERVER.ToString(), new string[] { "start_market", "1" })
             };
         }
@@ -300,7 +299,6 @@ namespace ServiceMessage
             return new MsgReport()
             {
                 Object = Trader.Terminal,
-                ActivateDate = true,
             };
         }
 
@@ -380,7 +378,6 @@ namespace ServiceMessage
             return new MsgReport()
             {
                 Object = newTrade,
-                ActivateDate = true,
             };
 
             /*

@@ -17,5 +17,9 @@ namespace QuikConnector
                 Debug.WriteLine((mark.Length > 0 ? mark + ": " : "") + text);
             }
         }
+        public static void Output(string text, string mark = "qdebug")
+        {
+            Debug.WriteLine((mark.Length > 0 ? mark + ": " : "") + text);
+        }
     }
 }

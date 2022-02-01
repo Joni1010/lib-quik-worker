@@ -8,55 +8,32 @@ namespace QuikConnector.ServiceMessage.Package
     /// </summary>
     public class PackMsg
     {
-        public delegate void ActionMsg(Msg msg);
         /// <summary>
         /// 
         /// </summary>
         /// <param name="pack"></param>
         /// <returns></returns>
-        public static PackMsg Create(string pack)
+        public static PackMsg Parse(string pack)
         {
-            return new PackMsg() { Data = pack.Split(SPLITTER_PACK) };
+            var newPack = new PackMsg();
+            newPack.Data = pack.Split(SPLITTER_PACK);
+            return newPack;
         }
         /// <summary> 
         /// Разделитель сообщений в одной посылке 
         /// </summary>
         protected const char SPLITTER_PACK = '\t';
-
-        /// <summary>
-        /// Приоритет пакета
-        /// </summary>
-        public int priority;
         /// <summary>
         /// Структура пакета
         /// </summary>
-        public string[] Data;
+        protected string[] Data;  
         /// <summary>
-        /// Флаг на проверку дублей
+        /// 
         /// </summary>
-        public bool DelDouble;
-        /// <summary>
-        /// Условие удаления дубликатов
-        /// </summary>
-        public Func<PackMsg, bool> ConditionDelDouble;
-        /// <summary>
-        /// Кол-во попыток обработки сообщения
-        /// </summary>
-        public int CountTry;
-
-        public void Each(ActionMsg actionForMsg)
+        /// <returns></returns>
+        public string[] GetData()
         {
-            if (actionForMsg is null)
-            {
-                return;
-            }
-            foreach (var item in Data)
-            {
-                if (item.Length > 0)
-                {
-                    actionForMsg(Msg.Create(item));
-                }
-            }
+            return Data;
         }
     }
 }
