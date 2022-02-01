@@ -7,11 +7,12 @@ using System.Threading;
 
 namespace QuikConnector.libs
 {
-    public class СSocket
+    public class CSocket
     {
         // State object for reading client data asynchronously
         public class StateObject : object
         {
+            public static readonly byte[] RESPONSE_GET = new byte[] { 99, 99};
             // Client  socket.
             public Socket Socket;
             //public Socket wSocket = null;
@@ -36,7 +37,7 @@ namespace QuikConnector.libs
         private IPAddress ipAddress;
         private IPEndPoint remoteEP;
 
-        public СSocket(int sizeBuff)
+        public CSocket(int sizeBuff)
         {
             this.StateSock = new StateObject(sizeBuff);
         }
@@ -88,12 +89,12 @@ namespace QuikConnector.libs
             {
                 Array.Clear(StateSock.buffer, 0, StateSock.buffer.Length);
                 StateSock.TransferBytes = StateSock.Socket.Receive(StateSock.buffer, StateSock.Socket.Available, SocketFlags.None);
-
+                Send(Encoding.ASCII.GetBytes(StateSock.TransferBytes.ToString()));
                 //StateSock.BufferString = Encoding.GetEncoding(1251).GetString(StateSock.buffer, 0, StateSock.TransferBytes);
             }
             catch (Exception)
             {
-
+                int r = 0;
             }
             return StateSock.TransferBytes;
         }
@@ -101,7 +102,7 @@ namespace QuikConnector.libs
         /// <summary>  Отправка сообщений  </summary>
         /// <param name="msg"></param>
         /// <returns></returns>
-        public int Send(byte[] data )
+        public int Send(byte[] data)
         {
             try
             {

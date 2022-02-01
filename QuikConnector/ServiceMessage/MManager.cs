@@ -3,33 +3,47 @@ using Managers;
 using QuikControl;
 using System.Threading;
 using QuikConnector.libs;
+using System.Collections.Generic;
+using System.Linq;
+using System;
 using QuikConnector.ServiceMessage.Package;
 using QuikConnector.ServiceMessage.Message;
 using ServiceMessage;
 using System.Text;
-using QuikConnector.libs.zlib;
-using System.Diagnostics;
 
 namespace QuikConnector.ServiceMessage
 {
     /// <summary> Менеджер сообщений </summary>
     public class MManager
     {
+
         /// <summary> Флаг работы основного цикла. </summary>
         public static bool LoopProcessing = true;
         /// <summary> Размер принимаемого сообщения от сервера. </summary>
         private const int MAX_SIZE_MESSAGE = 10000000;
 
         /// <summary> Сокет отправки </summary>
-        private CSocket SendSocket = new CSocket(MAX_SIZE_MESSAGE);
+        private СSocket SendSocket = new СSocket(MAX_SIZE_MESSAGE);
         /// <summary> Сокет приема базовых сообщений </summary>
-        private CSocket GetSocket = new CSocket(MAX_SIZE_MESSAGE);
+        private СSocket GetSocket = new СSocket(MAX_SIZE_MESSAGE);
+        /// <summary> Сокет приема сделок </summary>
+        private СSocket GetSocketTrades = new СSocket(MAX_SIZE_MESSAGE);
 
+        /// <summary> Стек полученных сообщений </summary>
+        private MQueue<Msg> QueueBase = new MQueue<Msg>();
+        /// <summary> Стек полученных сообщений с историческими сделками </summary>
+        private MQueue<Msg> QueueTrades = new MQueue<Msg>();
+        /// <summary> Стек полученных системных сообщений </summary>
+        //private MQueue<string> QueueSys = new MQueue<string>();
         /// <summary> Стек сообщений на отправку </summary>
         private MQueue<string> QueueSend = new MQueue<string>();
-        private MQueue<PackMsg> QueuePack = new MQueue<PackMsg>();
-        private MQueue<Msg> QueueNotPriority = new MQueue<Msg>();
 
+        /// <summary> Делегат нового сообщения. </summary>
+        /// <param name="MsgObject">Объект менеджера сообщений.</param>
+        /// <param name="message">Текстовое сообщение.</param>
+        public delegate void eventNewMessage(MManager MsgObject, string message);
+        /// <summary>  Обработчик нового системного сообщения. </summary>
+        public event eventNewMessage OnNewSysMessage;
         /// <summary> Объект конвертора </summary>
         public ConvertorMsg Convertor = null;
 
@@ -50,9 +64,7 @@ namespace QuikConnector.ServiceMessage
         {
             if (!msgSend.Empty())
             {
-                var msg = Type + MsgServer.SP_FORSERVER + string.Join(MsgServer.SP_FORSERVER.ToString(), msgSend);
-                QueueSend.Add(msg);
-                QDebug.write(msg);
+                QueueSend.Add(Type + MsgServer.SP_FORSERVER + string.Join(MsgServer.SP_FORSERVER.ToString(), msgSend));
             }
         }
         /// <summary>
@@ -64,9 +76,7 @@ namespace QuikConnector.ServiceMessage
         {
             if (!msgSend.Empty())
             {
-                var msg = Type + MsgServer.SP_FORSERVER + msgSend;
-                QueueSend.Add(msg);
-                QDebug.write(msg);
+                QueueSend.Add(Type + MsgServer.SP_FORSERVER + msgSend);
             }
         }
         /// <summary> Добавить сообщение на отправку серверу </summary>
@@ -76,7 +86,6 @@ namespace QuikConnector.ServiceMessage
             if (!msgSend.Empty())
             {
                 QueueSend.Add(msgSend);
-                QDebug.write(msgSend);
             }
         }
         /// <summary> Добавить сообщение на отправку серверу с проверкой предыдущей, если совпадает то не добавляет. </summary>
@@ -88,7 +97,6 @@ namespace QuikConnector.ServiceMessage
                 if (msgSend != QueueSend.Last)
                 {
                     QueueSend.Add(msgSend);
-                    QDebug.write(msgSend);
                 }
             }
         }
@@ -97,22 +105,28 @@ namespace QuikConnector.ServiceMessage
         private void AllSocketConnected()
         {
             //Запускаем слушатель сокета
-            Send(Commands.SIGNAL_CONNECT_SUCCESS, new string[] { "1" });
+            Send("connect_socket", new string[] { "1" });
+            Qlog.Write("Socket connect: OK");
         }
 
         /// <summary> Функция осуществляет подключение к скрипту LUA, запущенный в терминале. </summary>
         /// <param name="ServerAddr">Адрес подключения (по умолчанию localhost)</param>
         /// <param name="port">Порт подключения (по умолчанию 8080)</param>
         /// <returns></returns>
-        public bool ConnectSockets(string ServerAddr, int portSend, int portReceive)
+        public bool ConnectSockets(string ServerAddr, int tport, int tportTrade, int tportReceive)
         {
             //Сокет на отправку
-            if (!SendSocket.CreateSocket(ServerAddr, portSend, false))
+            if (!SendSocket.CreateSocket(ServerAddr, tport, false))
             {
                 return false;
             }
             //Сокет на получение
-            if (!GetSocket.CreateSocket(ServerAddr, portReceive))
+            if (!GetSocket.CreateSocket(ServerAddr, tportTrade))
+            {
+                return false;
+            }
+            //Сокет на получение исторических сделок
+            if (!GetSocketTrades.CreateSocket(ServerAddr, tportReceive))
             {
                 return false;
             }
@@ -133,19 +147,22 @@ namespace QuikConnector.ServiceMessage
                 {
                     //Получает данные с сокета
                     mm.Scaning();
+                    mm.ScaningHistTrades();
                     Thread.Sleep(1);
                 }
                 mm.GetSocket.CloseSocket();
             });
-            //Основной цикл обработки и отправки пакетов
+            //Основной цикл обработки и отправки сообщений
             MThread.InitThread(ThreadPriority.Normal, this, (classMM) =>
             {
                 MManager mm = (MManager)classMM;
                 while (LoopProcessing)
                 {
-                    mm.HandlerPack();
+                    //Обработка полученных сообщений
+                    mm.ProviderMessages();
                     Thread.Sleep(1);
                 }
+                mm.GetSocket.CloseSocket();
             });
             //Основной цикл обработки и отправки сообщений
             MThread.InitThread(ThreadPriority.Normal, this, (classMM) =>
@@ -165,18 +182,34 @@ namespace QuikConnector.ServiceMessage
         {
             SendCheckLast("Stop" + MsgServer.SP_FORSERVER + "1");
         }
+
+        /// <summary>  Обработчик получения данных из сокета  </summary>
+        /// <param name="byteRecv">Кол-во байт принятых.</param>
+        /// <param name="recvData">Принятые данные</param>
+
         /// <summary>
         ///  Распределение полученных сообщений из сокета
         /// </summary>
         /// <param name="content">Принятые данные</param>
         /// <param name="isHistoryTrades"> флаг что это историческая сделка </param>
         /// <returns></returns>
-        private int Allocation(byte[] data)
+        private int Allocation(byte[] data, bool isHistoryTrades = false)
         {
             if (data.Length > 0)
             {
-                string content = Zlib.Unzip(data, 2000000, "windows-1251");
-                QueuePack.Add(PackMsg.Parse(content));
+                var content = Encoding.GetEncoding(1251).GetString(Zipper.Unzip(data));
+                var pack = PackMsg.Create(content);
+                pack.Each((msg) =>
+                {
+                    if (!isHistoryTrades)
+                    {
+                        QueueBase.Add(msg);
+                    }
+                    else
+                    {
+                        QueueTrades.Add(msg);
+                    }
+                });
             }
             return data.Length;
         }
@@ -185,57 +218,35 @@ namespace QuikConnector.ServiceMessage
         /// <summary> Событие которое позволяет прогрузить события в очереди. Чтоб избежать застоя. </summary>
         public event ActivatorEvents AcivateAllEvent;
 
-        private void HandlerPack()
+        /// <summary> Обработчик сообщений из стека </summary>
+        /// <param name="classMM"></param>
+        private bool ProviderMessages()
         {
-            int k = 0;
-            if (QueuePack.Count > 0)
+            while (true)
             {
-                var pack = QueuePack.getFirst;
-                QueuePack.DeleteItem(pack);
-                bool wasPriority = false;
-                foreach (var textMsg in pack.GetData())
+                //обработка всех важных сообщений
+                var message = QueueBase.getFirst;
+                QueueBase.DeleteItem(message);
+                if (HandlerMessage(message))
                 {
-                    var msg = Msg.Create(textMsg);
-                    QDebug.write(textMsg);
-                    //Сортируем на приоритетные и нет
-                    if (!Priority.NotPriority(msg))
-                    {
-                        HandlerMessage(msg);
-                        wasPriority = true;
-                        k++;
-                    }
-                    else
-                    {
-                        QueueNotPriority.Add(msg);
-                    }
+                    continue;
                 }
-                if (wasPriority)
+                Qlog.Write("Not processed: " + message);
+                //throw new ArgumentException("More action " + string.Join(Message.SP_DATA.ToString(), message.Struct));
+                //обработка сообщейни исторических сделок
+                message = QueueTrades.getFirst;
+                QueueTrades.DeleteItem(message);
+                if (HandlerMessage(message))
                 {
-                    AcivateAllEvent();
+                    continue;
                 }
-                if (k > 0)
-                {
-                    QDebug.Output("prior "+k.ToString());
-                }
+                Qlog.Write("Not processed: " + message);
+                //throw new ArgumentException("More action " + string.Join(Message.SP_DATA.ToString(), message.Struct));
+                break;
             }
-            else
-            {
-                //Обработка не приоритетных сообщений
-                while (QueuePack.Count == 0 && QueueNotPriority.Count > 0)
-                {
-                    var npMsg = QueueNotPriority.getFirst;
-                    QueueNotPriority.DeleteItem(npMsg);
-                    HandlerMessage(npMsg);
-                    k++;
-                }
-                if (k > 0)
-                {
-                    QDebug.Output("not_prior "+k.ToString());
-                }
-
-            }
+            AcivateAllEvent();
+            return true;
         }
-
         /// <summary>
         /// 
         /// </summary>
@@ -256,22 +267,43 @@ namespace QuikConnector.ServiceMessage
                     //Проверяем успешность обработки сообщения
                     if (report.Value.Object.NotIsNull())
                     {
-                        if (report.Value.ActivateDate)
-                        {
-                            AcivateAllEvent();
-                        }
+                        return true;
                     }
                 }
-                return true;
             }
             return false;
         }
+
+        /// <summary> Функция обработки системных сообщений </summary>
+        /// <param name="contentMsg">Поступающее сообщение</param>
+        /*private void ProcessSysMessage()
+        {
+            if (QueueSys.Count > 0)
+            {
+                var item = QueueSys.getFirst;
+                QueueSys.DeleteItem(item);
+                if (OnNewSysMessage.NotIsNull())
+                {
+                    OnNewSysMessage(this, item);
+                }
+            }
+        }*/
         /// <summary> Обработка полученных данных </summary>
         private bool Scaning()
         {
             if (GetSocket.Receive() > 0)
             {
                 Allocation(GetSocket.StateSock.buffer);
+                return true;
+            }
+            return false;
+        }
+        /// <summary> Обработка полученных сделок </summary>
+        private bool ScaningHistTrades()
+        {
+            if (GetSocketTrades.Receive() > 0)
+            {
+                Allocation(GetSocketTrades.StateSock.buffer, true);
                 return true;
             }
             return false;
@@ -285,7 +317,7 @@ namespace QuikConnector.ServiceMessage
             {
                 var item = QueueSend.getFirst;
                 QueueSend.DeleteItem(item);
-                var bytes = SendSocket.Send(Encoding.ASCII.GetBytes(item + '\t'));
+                var bytes = SendSocket.Send(item + '\t');
             }
         }
 
@@ -296,6 +328,7 @@ namespace QuikConnector.ServiceMessage
             LoopProcessing = false;
 
             SendSocket.CloseSocket();
+            GetSocketTrades.CloseSocket();
             GetSocket.CloseSocket();
             Thread.Sleep(50);
             MThread.AbortAll();

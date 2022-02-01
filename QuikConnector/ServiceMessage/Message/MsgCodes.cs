@@ -7,18 +7,18 @@ using System.Threading.Tasks;
 
 namespace QuikConnector.ServiceMessage
 {
-    class CodesMsg
+    class MsgCodes
     {
-        public const string CODE_MSG_TYPE_SERVICE       = "01";
-        public const string CODE_MSG_TYPE_START_TRADES  = "02";
+        public const string CODE_MSG_TYPE_SERVICE           = "01";
+        public const string CODE_MSG_TYPE_START_TRADES      = "02";
 
-        public const string CODE_MSG_TYPE_FIRM = "10";
-        public const string CODE_MSG_TYPE_CLASS = "11";
-        public const string CODE_MSG_TYPE_ACCOUNT = "12";
-        public const string CODE_MSG_TYPE_CLIENT = "13";
+        public const string CODE_MSG_TYPE_FIRM              = "10";
+        public const string CODE_MSG_TYPE_CLASS             = "11";
+        public const string CODE_MSG_TYPE_ACCOUNT           = "12";
+        public const string CODE_MSG_TYPE_CLIENT            = "13";
 
-        public const string CODE_MSG_TYPE_SECURITIES = "20";
-        public const string CODE_MSG_TYPE_CHECKSECURITIES = "21";
+        public const string CODE_MSG_TYPE_SECURITIES        = "20";
+        public const string CODE_MSG_TYPE_CHECKSECURITIES   = "21";
 
         public const string CODE_MSG_TYPE_DEPOLIMIT		    = "30";
         public const string CODE_MSG_TYPE_MONEYLIMIT        = "31";

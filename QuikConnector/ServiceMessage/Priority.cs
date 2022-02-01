@@ -1,8 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using QuikConnector.ServiceMessage;
+using QuikConnector.ServiceMessage.Message;
 
 namespace ServiceMessage
 {
@@ -37,6 +34,15 @@ namespace ServiceMessage
         public const int P_HISTORYTRADE = 100;
         public const int P_CHANGESECURITIES = 200;
         public const int P_QUOTE = 300;
+
+        public static bool NotPriority(Msg msg)
+        {
+            return
+                msg.Code() == MsgCodes.CODE_MSG_TYPE_TRADE_HISTORY ||
+                msg.Code() == MsgCodes.CODE_MSG_TYPE_CHECKSECURITIES || 
+                msg.Code() == MsgCodes.CODE_MSG_TYPE_SERVICE
+                ;
+        }
 
     }
 }

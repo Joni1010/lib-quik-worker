@@ -34,11 +34,10 @@ namespace Connector
         public QuikConnector(string serverAddr = "localhost")
         {
             
-            var tp = ConfSettings.GetParam("Main", "TransportPort").Value.ToInt32();
-            var tpTr = ConfSettings.GetParam("Main", "TransportPortTrade").Value.ToInt32();
-            var tpRecv = ConfSettings.GetParam("Main", "TransportPortReceive").Value.ToInt32(); 
+            var pSend = ConfSettings.GetParam("Main", "TransportPort").Value.ToInt32();
+            var pReceive = ConfSettings.GetParam("Main", "TransportPortReceive").Value.ToInt32(); 
 
-            this.ConTerminal = new QControlTerminal(serverAddr, tp, tpTr, tpRecv);
+            this.ConTerminal = new QControlTerminal(serverAddr, pSend, pReceive);
 
             var param = QuikConnector.ConfSettings.GetParam("SettingForStock", "MarketClass");
             //var ClassForStock = param.NotIsNull() ? param.Value : null;

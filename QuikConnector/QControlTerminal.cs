@@ -5,6 +5,7 @@ using QLuaApp;
 using System.Text.RegularExpressions;
 using Connector.Logs;
 using System;
+using QuikConnector.ServiceMessage;
 
 namespace QuikControl
 {
@@ -38,7 +39,7 @@ namespace QuikControl
         /// <summary> Контролер терминала. </summary>
         /// <param name="serverAddr">Адрес подключения к серверу. </param>
         /// <param name="port">Порт подключения</param>
-        public QControlTerminal(string serverAddr, int tport, int tportTrade, int tportReceive)
+        public QControlTerminal(string serverAddr, int portSend, int portReceive)
         {
 			this.InitMarketTools();
 
@@ -54,9 +55,8 @@ namespace QuikControl
             };
 
             Server.ServerAddr = serverAddr;
-            Server.tPort = tport;
-            Server.tPortTrade = tportTrade;
-            Server.tPortReceive = tportReceive;
+            Server.portSend = portSend;
+            Server.portReceive = portReceive;
         }
 
         /// <summary>
@@ -66,14 +66,11 @@ namespace QuikControl
         {
             Qlog.CatchException(() =>
             {
-                //Обработчик сообщений от сервера
-                MsgManager.OnNewSysMessage += new MManager.eventNewMessage(Event_OnNewSysMessage);
                 //Обработчик служебных сообщений
                 this.OnAnswerServer += (command) => { };
 
-
                 //Конект до сокета сервера
-                if (MsgManager.ConnectSockets(Server.ServerAddr, Server.tPort, Server.tPortTrade, Server.tPortReceive))
+                if (MsgManager.ConnectSockets(Server.ServerAddr, Server.portSend, Server.portReceive))
                 {
                     //Активатор отложенных событий
                     MsgManager.AcivateAllEvent += () =>
@@ -99,30 +96,10 @@ namespace QuikControl
             }
         }
 
-        /// <summary> Событие системного сообщения </summary>
-        /// <param name="MsgObject">Объект менеджера сообщений </param>
-        /// <param name="message">Строковое сообщение</param>
-        private void Event_OnNewSysMessage(MManager MsgObject, string message)
-        {
-            if (message.Empty()) return;
-
-            Regex reg = new Regex(@"^ServerCommand:", RegexOptions.IgnoreCase);
-            MatchCollection mc = reg.Matches(message);
-            if (mc.Count > 0)
-            {
-                string command = message.Replace("ServerCommand:", "");
-                if (!OnAnswerServer.Empty())
-                {
-                    OnAnswerServer(command);
-                }
-            }
-        }
-
         /// <summary> Завершает соединение сокета с терминалом</summary>
         public void CloseSockets()
         {
             this.isConnected = false;
-            MsgManager.OnNewSysMessage -= new MManager.eventNewMessage(Event_OnNewSysMessage);
             MsgManager.Close();
         }
     }
