@@ -16,6 +16,7 @@ using System.IO;
 using System.Text;
 using QuikConnector.ServiceMessage.Message;
 using QuikConnector;
+using QuikConnector.libs.json;
 
 namespace ServiceMessage
 {
@@ -260,10 +261,7 @@ namespace ServiceMessage
         /// <param name="Msg"></param>
         private MsgReport? GetTerminalInfo(string msg)
         {
-            var ms = new MemoryStream(Encoding.UTF8.GetBytes(msg));
-            var json = new DataContractJsonSerializer(typeof(STerminal));
-            var terminal = json.ReadObject(ms) as STerminal;
-            ms.Close();
+            var terminal = Json<STerminal>.Decode(msg, Encoding.UTF8);
 
             Trader.Terminal.Version = terminal.VERSION;
             Trader.Terminal.TradeDate = Convert.ToDateTime(terminal.TRADEDATE);
@@ -311,11 +309,7 @@ namespace ServiceMessage
         /// <returns></returns>
         private MsgReport? GetTradeFromArrayMsg(string msg, bool newItem = true)
         {
-            var ms = new MemoryStream(Encoding.UTF8.GetBytes(msg));
-            var json = new DataContractJsonSerializer(typeof(STrade));
-            var strade = json.ReadObject(ms) as STrade;
-            ms.Close();
-
+            var strade = Json<STrade>.Decode(msg, Encoding.UTF8);
 
             Trade newTrade = new Trade();
             newTrade.Number = strade.trade_num.ToLong();
@@ -460,11 +454,7 @@ namespace ServiceMessage
         /// <returns></returns>
         private MsgReport? GetStopOrderFromArrayMsg(string msg)
         {
-            var encode = Encoding.UTF8.GetBytes(msg);
-            var ms = new MemoryStream(encode);
-            var json = new DataContractJsonSerializer(typeof(SStopOrder));
-            var sstopOrder = json.ReadObject(ms) as SStopOrder;
-            ms.Close();
+            var sstopOrder = Json<SStopOrder>.Decode(msg, Encoding.UTF8);
 
             int flags = sstopOrder.flags.ToInt32();
             StopOrder s_order = new StopOrder
@@ -676,15 +666,11 @@ namespace ServiceMessage
         /// <returns></returns>
         public MsgReport? GetOrderFromArrayMsg(string msg)
         {
-            var encode = Encoding.UTF8.GetBytes(msg);
-            var ms = new MemoryStream(encode);
-            var json = new DataContractJsonSerializer(typeof(SOrder));
-            var sorder = json.ReadObject(ms) as SOrder;
-            ms.Close();
+            var sorder = Json<SOrder>.Decode(msg, Encoding.UTF8);
 
             Order ord = new Order();
             int flags = sorder.flags.ToInt32();
-            ord.OrderNumber = sorder.order_num.ToLong();
+            ord.OrderNumber = sorder.ordernum.ToLong();
             ord.SecCode = sorder.sec_code;
             ord.Sec = FindSecurities(ord.SecCode, sorder.class_code);
             if (ord.Sec.IsNull())
@@ -835,11 +821,7 @@ namespace ServiceMessage
         /// <returns></returns>
         public MsgReport? GetMyTradeFromArrayMsg(string msg)
         {
-            var encode = Encoding.UTF8.GetBytes(msg);
-            var ms = new MemoryStream(encode);
-            var json = new DataContractJsonSerializer(typeof(SMyTrade));
-            var sMyTrade = json.ReadObject(ms) as SMyTrade;
-            ms.Close();
+            var sMyTrade = Json<SMyTrade>.Decode(msg, Encoding.UTF8);
 
             Trade trade = new Trade();
             // 0 OnMyTrade | 1 trade_num | 2 sec_code | 3 class_code | 4 price | 5 qty | 
@@ -973,11 +955,7 @@ namespace ServiceMessage
         /// <returns></returns>
         private MsgReport? GetFirmFromArrayMsg(string msg)
         {
-            var encode = Encoding.UTF8.GetBytes(msg);
-            var ms = new MemoryStream(encode);
-            var json = new DataContractJsonSerializer(typeof(SFirm));
-            var sfirm = json.ReadObject(ms) as SFirm;
-            ms.Close();
+            var sfirm = Json<SFirm>.Decode(msg, Encoding.UTF8);
 
             Firm firm = new Firm
             {
@@ -1021,11 +999,7 @@ namespace ServiceMessage
         /// <returns></returns>
         private MsgReport? GetClassFromArrayMsg(string msg)
         {
-            var encode = Encoding.UTF8.GetBytes(msg);
-            var ms = new MemoryStream(encode);
-            var json = new DataContractJsonSerializer(typeof(SClass));
-            var sclass = json.ReadObject(ms) as SClass;
-            ms.Close();
+            var sclass = Json<SClass>.Decode(msg, Encoding.UTF8);
 
             MarketClass marketClass = new MarketClass();
             marketClass.FirmId = sclass.firmid;
@@ -1143,11 +1117,7 @@ namespace ServiceMessage
 
         private MsgReport? GetSecuritiesFromArrayMsg(string msg)
         {
-            var encode = Encoding.UTF8.GetBytes(msg);
-            var ms = new MemoryStream(encode);
-            var json = new DataContractJsonSerializer(typeof(SSecurities));
-            var ssec = json.ReadObject(ms) as SSecurities;
-            ms.Close();
+            var ssec = Json<SSecurities>.Decode(msg, Encoding.UTF8);
 
             var Class = Trader.tClasses.SearchFirst(c => c.Code == ssec.class_code);
             Securities sec = new Securities
@@ -1501,11 +1471,7 @@ namespace ServiceMessage
         /// <returns></returns>
         private MsgReport? GetAccountsFromArrayMsg(string msg)
         {
-            var encode = Encoding.UTF8.GetBytes(msg);
-            var ms = new MemoryStream(encode);
-            var json = new DataContractJsonSerializer(typeof(SAccount));
-            var saccount = json.ReadObject(ms) as SAccount;
-            ms.Close();
+            var saccount = Json<SAccount>.Decode(msg, Encoding.UTF8);
 
             Account acc = new Account();
             string[] listC = saccount.class_codes.Trim('|').Split('|');
@@ -1593,11 +1559,7 @@ namespace ServiceMessage
         /// <returns></returns>
         private MsgReport? GetClientsFromArrayMsg(string msg)
         {
-            var encode = Encoding.UTF8.GetBytes(msg);
-            var ms = new MemoryStream(encode);
-            var json = new DataContractJsonSerializer(typeof(SClient));
-            var sclient = json.ReadObject(ms) as SClient;
-            ms.Close();
+            var sclient = Json<SClient>.Decode(msg, Encoding.UTF8);
 
             Client cl = new Client();
             if (sclient.client_codes.Length > 0)
@@ -1629,11 +1591,7 @@ namespace ServiceMessage
         }
         private MsgReport? GetDepoLimitFromArrayMsg(string msg)
         {
-            var encode = Encoding.UTF8.GetBytes(msg);
-            var ms = new MemoryStream(encode);
-            var json = new DataContractJsonSerializer(typeof(SDepoLimit));
-            var sdepoLimit = json.ReadObject(ms) as SDepoLimit;
-            ms.Close();
+            var sdepoLimit = Json<SDepoLimit>.Decode(msg, Encoding.UTF8);
 
             long limit_kind = sdepoLimit.limit_kind.ToInt64();
             if (limit_kind < 0)
@@ -1795,11 +1753,7 @@ namespace ServiceMessage
         /// <returns></returns>
         private MsgReport? GetFuturesHoldingFromArrayMsg(string msg)
         {
-            var encode = Encoding.UTF8.GetBytes(msg);
-            var ms = new MemoryStream(encode);
-            var json = new DataContractJsonSerializer(typeof(SFuturesHolding));
-            var sfutHolding = json.ReadObject(ms) as SFuturesHolding;
-            ms.Close();
+            var sfutHolding = Json<SFuturesHolding>.Decode(msg, Encoding.UTF8);
 
             short type = sfutHolding.type.ToInt16();
             //if (type != 0) return null;
@@ -1992,11 +1946,7 @@ namespace ServiceMessage
         /// <returns></returns>
         private MsgReport? GetMoneyLimitsFromArrayMsg(string msg)
         {
-            var encode = Encoding.UTF8.GetBytes(msg);
-            var ms = new MemoryStream(encode);
-            var json = new DataContractJsonSerializer(typeof(SMoneyLimits));
-            var smonetLimits = json.ReadObject(ms) as SMoneyLimits;
-            ms.Close();
+            var smonetLimits = Json<SMoneyLimits>.Decode(msg, Encoding.UTF8);
 
             Portfolio portfolio = null;
             // 0 OnMoneyLimits | 1 leverage | 2 currentbal | 3 limit_kind | 4 client_code | 5 openlimit | 6 firmid | 
@@ -2102,6 +2052,7 @@ namespace ServiceMessage
             return null;
         */
         }
+
         /// <summary>
         /// Получение портфеля и его изменений из сообщения
         /// </summary>
@@ -2111,11 +2062,7 @@ namespace ServiceMessage
         /// <returns></returns>
         private MsgReport? GetFutLimitsFromArrayMsg(string msg)
         {
-            var encode = Encoding.UTF8.GetBytes(msg);
-            var ms = new MemoryStream(encode);
-            var json = new DataContractJsonSerializer(typeof(SFuturesLimit));
-            var sfutLimit = json.ReadObject(ms) as SFuturesLimit;
-            ms.Close();
+            var sfutLimit = Json<SFuturesLimit>.Decode(msg, Encoding.UTF8);
 
             Portfolio portfolio = null;
             // 0 OnFuturesLimits | 1 cbplused | 2 cbp_prev_limit | 3 varmargin | 4 options_premium | 5 limit_type | 

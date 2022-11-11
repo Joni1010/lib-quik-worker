@@ -47,6 +47,7 @@
   <ItemGroup>
     <Compile Include="Commands.cs" />
     <Compile Include="Events\ActivatorEvent.cs" />
+    <Compile Include="libs\json\Json.cs" />
     <Compile Include="libs\LockObject.cs" />
     <Compile Include="libs\zlib\Zlib.cs" />
     <Compile Include="Managers\MThread.cs" />
