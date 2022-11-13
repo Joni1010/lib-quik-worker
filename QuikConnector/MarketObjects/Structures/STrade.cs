@@ -27,7 +27,7 @@ namespace QuikConnector.MarketObjects.Structures
         [DataMember]
         internal string price = "";
         [DataMember]
-        internal SDate datetime;
+        internal SDate datetime = new SDate();
         [DataMember]
         internal string repoterm = "";
         [DataMember]

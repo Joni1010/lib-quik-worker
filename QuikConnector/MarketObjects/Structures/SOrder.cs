@@ -19,7 +19,7 @@ namespace QuikConnector.MarketObjects.Structures
         [DataMember]
         internal string canceled_uid = "";
         [DataMember]
-        internal SDate datetime;
+        internal SDate datetime = new SDate();
         [DataMember]
         internal string value = "";
         [DataMember]
@@ -113,7 +113,7 @@ namespace QuikConnector.MarketObjects.Structures
         [DataMember]
         internal string min_qty = "";
         [DataMember]
-        internal SDate withdraw_datetime;
+        internal SDate withdraw_datetime = new SDate();
         [DataMember]
         internal string start_discount = "";
         [DataMember]

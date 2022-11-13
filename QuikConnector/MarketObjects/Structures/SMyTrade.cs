@@ -39,7 +39,7 @@ namespace QuikConnector.MarketObjects.Structures
         [DataMember]
         internal string seccode = "";
         [DataMember]
-        internal SDate canceled_datetime;
+        internal SDate canceled_datetime = new SDate();
         [DataMember]
         internal string cross_rate = "";
         [DataMember]
@@ -69,7 +69,7 @@ namespace QuikConnector.MarketObjects.Structures
         [DataMember]
         internal string settlecode = "";
         [DataMember]
-        internal SDate datetime;
+        internal SDate datetime = new SDate();
         [DataMember]
         internal string exec_market = "";
         [DataMember]

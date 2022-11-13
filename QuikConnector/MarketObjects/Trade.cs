@@ -1,5 +1,5 @@
-﻿using Connector.Logs;
-using System;
+﻿using System;
+using QuikConnector.Components.Log;
 using QuikConnector.MarketObjects;
 
 
@@ -65,7 +65,7 @@ namespace MarketObjects
 		{
 			if (sec.IsNull()) return null;
 			if (strTrade.Length == 0) return null;
-            return (Trade)Qlog.CatchException(() =>
+            return (Trade)QLog.CatchException(() =>
             {
                 var data = strTrade.Split(';');
                 if (data.Length < 4)

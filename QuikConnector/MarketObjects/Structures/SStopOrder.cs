@@ -31,7 +31,7 @@ namespace QuikConnector.MarketObjects.Structures
         [DataMember]
         internal string condition_sec_code = "";
         [DataMember]
-        internal SDate order_date_time;
+        internal SDate order_date_time = new SDate();
         [DataMember]
         internal string trans_id = "";
         [DataMember]
@@ -39,7 +39,7 @@ namespace QuikConnector.MarketObjects.Structures
         [DataMember]
         internal string class_code = "";
         [DataMember]
-        internal SDate activation_date_time;
+        internal SDate activation_date_time = new SDate();
         [DataMember]
         internal string account = "";
         [DataMember]
@@ -55,7 +55,7 @@ namespace QuikConnector.MarketObjects.Structures
         [DataMember]
         internal string stop_order_type = "";
         [DataMember]
-        internal SDate withdraw_datetime;
+        internal SDate withdraw_datetime = new SDate();
         [DataMember]
         internal string ordertime = "";
         [DataMember]
