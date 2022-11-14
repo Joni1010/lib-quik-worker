@@ -1230,7 +1230,10 @@ namespace QuikConnector.Components.Messages
         /// <returns></returns>
         private int GetRealVolume(Securities sec, int volume)
         {
-            if (sec.IsNull()) return 0;
+            if (sec.IsNull())
+            {
+                return 0;
+            }
             return sec.StepPrice > 0
                 ? volume
                 : (sec.Lot != 0 ? volume / sec.Lot : 0);
