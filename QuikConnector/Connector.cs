@@ -17,12 +17,17 @@ namespace QuikConnector
         public static Settings ConfSettings = new Settings();
 
         /// <summary> Контролер терминала </summary>
-        private TerminalControl ConTerminal;
+        private readonly TerminalControl ConTerminal;
 
         /// <summary> Параметры и объекты терминала </summary>
         public TerminalControl Objects
         {
             get { return this.ConTerminal; }
+        }
+
+        public bool Connected
+        {
+            get { return ConTerminal.Connected; }
         }
 
         /// <summary>

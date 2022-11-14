@@ -11,7 +11,7 @@ namespace QuikConnector.Components.Terminal
     public class TerminalControl : TerminalData
     {
         /// <summary> Флаг подключения к серверной части (к скрипту LUA) </summary>
-        public bool isConnected = false;
+        private bool connected = false;
 
         /// <summary> Последнее сообщение полученное от терминала. </summary>
         public string LastMessage = "";
@@ -19,13 +19,13 @@ namespace QuikConnector.Components.Terminal
         public Trade LastTrade = null;
 
         /// <summary> Настройки для подключения.  </summary>
-        private ServerData Server = new ServerData();
-        
+        private readonly ServerData Server = new ServerData();
+
         /// <summary> Информация по торговому терминалу  </summary>
         public MarketTerminal Terminal = new MarketTerminal();
 
         /// <summary> Менеджер сообщений полученных из терминала Quik </summary>
-        private MessageController MsgManager = null;
+        private readonly MessageController MsgManager = null;
 
         //Для отладки
         private delegate void AllEvent(string Str);
@@ -40,12 +40,17 @@ namespace QuikConnector.Components.Terminal
         /// </summary>
         private Thread thread = null;
 
+        public bool Connected
+        {
+            get { return connected; }
+        }
+
         /// <summary> Контролер терминала. </summary>
         /// <param name="serverAddr">Адрес подключения к серверу. </param>
         /// <param name="port">Порт подключения</param>
         public TerminalControl(string serverAddr, int portSend, int portReceive)
         {
-			MsgManager = new MessageController(this);
+            MsgManager = new MessageController(this);
             //MsgManTraders = new MManager(this);
             // MsgManMarket = new MManager(this);
 
@@ -62,7 +67,8 @@ namespace QuikConnector.Components.Terminal
 
             thread = ThreadsController.Thread(() =>
             {
-                while (thread.NotIsNull()) {
+                while (thread.NotIsNull())
+                {
                     generatingElements();
                     ThreadsController.Sleep(5);
                 }
@@ -84,7 +90,7 @@ namespace QuikConnector.Components.Terminal
                 {
                     //Инициализация контроллера сообщений
                     MsgManager.InitThreadsMessages();
-                    this.isConnected = true;
+                    this.connected = true;
                 }
             });
         }
@@ -105,7 +111,7 @@ namespace QuikConnector.Components.Terminal
         public void CloseSockets()
         {
             thread = null;
-            this.isConnected = false;
+            this.connected = false;
             MsgManager.Close();
         }
     }
